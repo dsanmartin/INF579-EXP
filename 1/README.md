@@ -1,4 +1,4 @@
-# Experiencia 1
+# Experiencia 1 - *Vacuum World*
 
 Desarrollar un sistema de agentes que realice la tarea descrita en Vacuum World descrito en el Capítulo 3 del libro Introduction to Multiagent Systems de Wooldridge.
 
