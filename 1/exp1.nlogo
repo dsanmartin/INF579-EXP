@@ -24,24 +24,44 @@ end
 to go
   if not any? dirt [ stop ]
   ask vacuum [
+    ;; In(x,y)
+    in
     move-vacuum
-    ask dirt-here [die] ;; check if there are a dirt
+    ;;ask dirt-here [die] ;; check if there are a dirt
+    suck
   ]
   tick
 end
 
 to move-vacuum
   ;; Check if the vacuum is in top of world
+  ;;show vacuum-here
   ifelse pycor = 9
   [
     setxy pxcor + 1 0
   ]
   [
-    set heading 0
+    ;;set heading 0
+    set heading facing "east"
     fd 1
   ]
 end
 
+to in
+  type "Vacuum position: (" type pxcor type "," type pycor type ")\n"
+end
+
+to-report facing [d]
+  if d = "north" [report 90]
+  if d = "east" [report 0]
+  if d = "south" [report 270]
+  if d = "west" [report 180]
+end
+
+to suck
+  ask dirt-here [die] ;; check if there are a dirt
+  ;;ask dirt [die]
+end
 @#$#@#$#@
 GRAPHICS-WINDOW
 210
