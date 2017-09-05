@@ -1,6 +1,6 @@
 ;; Define breeds of turtles
 breed[vacuum]
-breed[dirt]
+breed[ddirt]
 
 ;; Initial setup
 to setup
@@ -14,8 +14,8 @@ to setup
     setxy random-pxcor random-pycor ;; Put vacuum at random position
   ]
 
-  set-default-shape dirt "leaf" ;; Use a leaf as dirt
-  create-dirt initial-dirt-number ;; Create dirt defined by user
+  set-default-shape ddirt "leaf" ;; Use a leaf as dirt
+  create-ddirt initial-dirt-number ;; Create dirt defined by user
   [
     set color black
     setxy random-pxcor random-pycor ;; Put dirt in random position
@@ -25,7 +25,7 @@ end
 
 ;; Go function
 to go
-  if not any? dirt [ stop ] ;; Stop if there is no dirt
+  if not any? ddirt [ stop ] ;; Stop if there is no dirt
   update ;; Main procedure updating database of agent
   tick
 end
@@ -42,18 +42,18 @@ to update
     let y pycor
 
     ;; If percept check dirt then clean up
-    if (in x y) and (ddirt x y)
+    if (In x y) and (Dirt x y)
     [ do "suck" ]
 
     ;; Check if vacuum is on top of world
     ifelse y = 9
     [
       ;; If vacuum is on top, heading to north and there is no dirt then do(turn)
-      if (in x y) and (facing "north") and (ddirt x y != true)
+      if (In x y) and (Facing "north") and (Dirt x y != true)
       [ do "turn" ]
 
       ;; If vacuum is on top and heading to east then do(forward)
-      if (in x y) and (facing "east")
+      if (In x y) and (Facing "east")
       [
         do "forward"
         set heading orientation "north" ;; After move to east, back to heading north
@@ -62,7 +62,7 @@ to update
     ]
     [
       ;; If vacuum is heading to north and there is not dirt beneath it then do(forward)
-      if (in x y) and (facing "north") and (ddirt x y != true)
+      if (In x y) and (Facing "north") and (Dirt x y != true)
       [ do "forward" ]
     ]
   ]
@@ -88,11 +88,11 @@ end
 
 ; Suck the dirt
 to suck
-  ask dirt-here [die] ;; Suck the dirt found
+  ask ddirt-here [die] ;; Suck the dirt found
 end
 
 ;; Do(action)
-to do [action]
+to Do [action]
   if (action = "suck") [ suck ]
   if (action = "forward") [ fforward ]
   if (action = "turn") [ turn ]
@@ -100,7 +100,7 @@ end
 
 ;; Domain predicates
 ;; In(x,t) agent is at (x,y)
-to-report in [x y]
+to-report In [x y]
   let i false
   ask vacuum
   [
@@ -110,9 +110,9 @@ to-report in [x y]
 end
 
 ;; Dirt(x,y) there is dirt at (x,y)
-to-report ddirt [x y]
+to-report Dirt [x y]
   let d false
-  ask dirt
+  ask ddirt
   [
    if (pxcor = x) and (pycor = y) [ set d true ]
   ]
@@ -120,7 +120,7 @@ to-report ddirt [x y]
 end
 
 ;; Facing(d) the agent is facing direction d
-to-report facing [d]
+to-report Facing [d]
   let f false
   ask vacuum
   [
@@ -138,14 +138,12 @@ end
 
 
 
-
-
 @#$#@#$#@
 GRAPHICS-WINDOW
-210
-10
-520
-341
+223
+13
+533
+344
 -1
 -1
 30.0
@@ -205,13 +203,13 @@ NIL
 SLIDER
 24
 86
-198
+208
 119
 initial-dirt-number
 initial-dirt-number
 1
-10
-6
+50
+20
 1
 1
 NIL
@@ -223,7 +221,7 @@ MONITOR
 84
 177
 dirt
-count dirt
+count ddirt
 17
 1
 11
