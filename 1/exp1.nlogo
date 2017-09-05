@@ -1,67 +1,145 @@
+;; Define breeds of turtles
 breed[vacuum]
 breed[dirt]
 
+;; Initial setup
 to setup
   clear-all
   ask patches [ set pcolor white ]
 
-  set-default-shape vacuum "truck"
-  create-vacuum 1
+  set-default-shape vacuum "truck" ;; Use a truck as vacuum
+  create-vacuum 1 ;; Create vacuum
   [
     set color black
-    setxy random-pxcor random-pycor
+    setxy random-pxcor random-pycor ;; Put vacuum at random position
   ]
 
-  set-default-shape dirt "leaf"
-  create-dirt 3
+  set-default-shape dirt "leaf" ;; Use a leaf as dirt
+  create-dirt initial-dirt-number ;; Create dirt defined by user
   [
     set color black
-    setxy random-pxcor random-pycor
+    setxy random-pxcor random-pycor ;; Put dirt in random position
   ]
   reset-ticks
 end
 
+;; Go function
 to go
-  if not any? dirt [ stop ]
-  ask vacuum [
-    ;; In(x,y)
-    in
-    move-vacuum
-    ;;ask dirt-here [die] ;; check if there are a dirt
-    suck
-  ]
+  if not any? dirt [ stop ] ;; Stop if there is no dirt
+  update ;; Main procedure updating database of agent
   tick
 end
 
-to move-vacuum
-  ;; Check if the vacuum is in top of world
-  ;;show vacuum-here
-  ifelse pycor = 9
+;; The main procedure
+to update
+  ask vacuum ;; Check for vacuum
   [
-    setxy pxcor + 1 0
+    ;; Start heading to north
+    set heading orientation "north"
+
+    ;; Get vacuum position in grid
+    let x pxcor
+    let y pycor
+
+    ;; If percept check dirt then clean up
+    if (in x y) and (ddirt x y)
+    [ do "suck" ]
+
+    ;; Check if vacuum is on top of world
+    ifelse y = 9
+    [
+      ;; If vacuum is on top, heading to north and there is no dirt then do(turn)
+      if (in x y) and (facing "north") and (ddirt x y != true)
+      [ do "turn" ]
+
+      ;; If vacuum is on top and heading to east then do(forward)
+      if (in x y) and (facing "east")
+      [
+        do "forward"
+        set heading orientation "north" ;; After move to east, back to heading north
+        setxy pxcor  0 ;; To traverse the world
+      ]
+    ]
+    [
+      ;; If vacuum is heading to north and there is not dirt beneath it then do(forward)
+      if (in x y) and (facing "north") and (ddirt x y != true)
+      [ do "forward" ]
+    ]
   ]
-  [
-    ;;set heading 0
-    set heading facing "east"
-    fd 1
-  ]
 end
 
-to in
-  type "Vacuum position: (" type pxcor type "," type pycor type ")\n"
+;; Define orientations
+to-report orientation [d]
+  if d = "north" [report 0]
+  if d = "east" [report 90]
+  if d = "south" [report 180]
+  if d = "west" [report 270]
 end
 
-to-report facing [d]
-  if d = "north" [report 90]
-  if d = "east" [report 0]
-  if d = "south" [report 270]
-  if d = "west" [report 180]
+;; Move forward
+to fforward
+  ask vacuum [ fd 1 ]
 end
 
+;; Turn 90°
+to turn
+  ask vacuum [set heading orientation "east"]
+end
+
+; Suck the dirt
 to suck
-  ask dirt-here [die] ;; check if there are a dirt
-  ;;ask dirt [die]
+  ask dirt-here [die] ;; Suck the dirt found
 end
+
+;; Do(action)
+to do [action]
+  if (action = "suck") [ suck ]
+  if (action = "forward") [ fforward ]
+  if (action = "turn") [ turn ]
+end
+
+;; Domain predicates
+;; In(x,t) agent is at (x,y)
+to-report in [x y]
+  let i false
+  ask vacuum
+  [
+    if (pxcor = x) and (pycor = y) [ set i true ]
+  ]
+  report i
+end
+
+;; Dirt(x,y) there is dirt at (x,y)
+to-report ddirt [x y]
+  let d false
+  ask dirt
+  [
+   if (pxcor = x) and (pycor = y) [ set d true ]
+  ]
+  report d
+end
+
+;; Facing(d) the agent is facing direction d
+to-report facing [d]
+  let f false
+  ask vacuum
+  [
+    if (d = "north") and (heading = 0) [ set f true ]
+    if (d = "east") and (heading = 90) [ set f true ]
+    if (d = "south") and (heading = 180) [ set f true ]
+    if (d = "west") and (heading = 270) [ set f true ]
+  ]
+  report f
+end
+
+;; NOTE: There are many ways to optimize the code using only NetLogo's functions but we code the problem in the most similar way to the book ;;
+
+
+
+
+
+
+
 @#$#@#$#@
 GRAPHICS-WINDOW
 210
@@ -123,6 +201,32 @@ NIL
 NIL
 NIL
 0
+
+SLIDER
+24
+86
+198
+119
+initial-dirt-number
+initial-dirt-number
+1
+10
+6
+1
+1
+NIL
+HORIZONTAL
+
+MONITOR
+27
+132
+84
+177
+dirt
+count dirt
+17
+1
+11
 
 @#$#@#$#@
 ## WHAT IS IT?
