@@ -27,7 +27,15 @@ end
 to go
   if not any? ddirt [ stop ] ;; Stop if there is no dirt
   update ;; Main procedure updating database of agent
+  if new-dirt? [ more-dirt ]
   tick
+end
+
+to more-dirt
+  ask ddirt
+  [
+   if count ddirt < 5 [ hatch new-dirt-number [ setxy random-pxcor random-pycor ] ]
+  ]
 end
 
 ;; The main procedure
@@ -139,13 +147,13 @@ end
 
 @#$#@#$#@
 GRAPHICS-WINDOW
-305
-26
-615
-357
+342
+35
+796
+510
 -1
 -1
-30.0
+44.4
 1
 10
 1
@@ -208,17 +216,17 @@ initial-dirt-number
 initial-dirt-number
 1
 50
-33
+15
 1
 1
 NIL
 HORIZONTAL
 
 MONITOR
-217
-77
-274
-122
+133
+223
+190
+268
 dirt
 count ddirt
 17
@@ -226,10 +234,10 @@ count ddirt
 11
 
 PLOT
-18
-133
-302
-355
+20
+273
+333
+511
 plot
 ticks
 dirt number
@@ -242,6 +250,47 @@ true
 "" ""
 PENS
 "dirt" 1.0 0 -10146808 true "" "plot count ddirt"
+
+SWITCH
+181
+39
+302
+72
+new-dirt?
+new-dirt?
+0
+1
+-1000
+
+SLIDER
+25
+131
+207
+164
+new-dirt-number
+new-dirt-number
+0
+50
+0
+1
+1
+NIL
+HORIZONTAL
+
+SLIDER
+24
+178
+206
+211
+new-dirt-treshold
+new-dirt-treshold
+0
+10
+0
+1
+1
+NIL
+HORIZONTAL
 
 @#$#@#$#@
 ## WHAT IS IT?
