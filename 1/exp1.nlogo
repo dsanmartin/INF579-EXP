@@ -137,13 +137,12 @@ end
 
 
 
-
 @#$#@#$#@
 GRAPHICS-WINDOW
-223
-13
-533
-344
+305
+26
+615
+357
 -1
 -1
 30.0
@@ -209,22 +208,40 @@ initial-dirt-number
 initial-dirt-number
 1
 50
-20
+33
 1
 1
 NIL
 HORIZONTAL
 
 MONITOR
-27
-132
-84
-177
+217
+77
+274
+122
 dirt
 count ddirt
 17
 1
 11
+
+PLOT
+18
+133
+302
+355
+plot
+ticks
+dirt number
+0.0
+10.0
+0.0
+50.0
+true
+true
+"" ""
+PENS
+"dirt" 1.0 0 -10146808 true "" "plot count ddirt"
 
 @#$#@#$#@
 ## WHAT IS IT?
