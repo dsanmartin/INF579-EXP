@@ -26,16 +26,9 @@ end
 ;; Go function
 to go
   if not any? ddirt [ stop ] ;; Stop if there is no dirt
-  update ;; Main procedure updating database of agent
-  if new-dirt? [ more-dirt ]
+  update ;; Main procedure updating knowledge base of agent
+  if new-dirt? [ more-dirt ] ;; Check if user want to add more random dirt
   tick
-end
-
-to more-dirt
-  ask ddirt
-  [
-   if count ddirt < 5 [ hatch new-dirt-number [ setxy random-pxcor random-pycor ] ]
-  ]
 end
 
 ;; The main procedure
@@ -51,19 +44,19 @@ to update
 
     ;; If percept check dirt then clean up
     if (In x y) and (Dirt x y)
-    [ do "suck" ]
+    [ Do "suck" ]
 
     ;; Check if vacuum is on top of world
     ifelse y = 9
     [
       ;; If vacuum is on top, heading to north and there is no dirt then do(turn)
       if (In x y) and (Facing "north") and (Dirt x y != true)
-      [ do "turn" ]
+      [ Do "turn" ]
 
       ;; If vacuum is on top and heading to east then do(forward)
       if (In x y) and (Facing "east")
       [
-        do "forward"
+        Do "forward"
         set heading orientation "north" ;; After move to east, back to heading north
         setxy pxcor  0 ;; To traverse the world
       ]
@@ -71,42 +64,36 @@ to update
     [
       ;; If vacuum is heading to north and there is not dirt beneath it then do(forward)
       if (In x y) and (Facing "north") and (Dirt x y != true)
-      [ do "forward" ]
+      [ Do "forward" ]
     ]
   ]
 end
 
-;; Define orientations
-to-report orientation [d]
-  if d = "north" [report 0]
-  if d = "east" [report 90]
-  if d = "south" [report 180]
-  if d = "west" [report 270]
-end
-
-;; Move forward
-to fforward
-  ask vacuum [ fd 1 ]
-end
-
-;; Turn 90°
-to turn
-  ask vacuum [set heading orientation "east"]
-end
-
-; Suck the dirt
-to suck
-  ask ddirt-here [die] ;; Suck the dirt found
-end
-
-;; Do(action)
+;; Do(action) - Actions that vacuum may perform
 to Do [action]
+  ;; Check the action to do
   if (action = "suck") [ suck ]
   if (action = "forward") [ fforward ]
   if (action = "turn") [ turn ]
 end
 
-;; Domain predicates
+;; Move vacuum forward
+to fforward
+  ask vacuum [ fd 1 ]
+end
+
+; Suck the dirt if vacuum is over it
+to suck
+  ask ddirt-here [die] ;; Suck the dirt found
+end
+
+;; Turn vacuum 90 degrees
+to turn
+  ask vacuum [set heading orientation "east"]
+end
+
+; Domain predicates ;
+
 ;; In(x,t) agent is at (x,y)
 to-report In [x y]
   let i false
@@ -122,7 +109,8 @@ to-report Dirt [x y]
   let d false
   ask ddirt
   [
-   if (pxcor = x) and (pycor = y) [ set d true ]
+    ;; If dirt position match with (x,y), then report true
+    if (pxcor = x) and (pycor = y) [ set d true ]
   ]
   report d
 end
@@ -132,6 +120,7 @@ to-report Facing [d]
   let f false
   ask vacuum
   [
+    ;; Check if facing match with headig
     if (d = "north") and (heading = 0) [ set f true ]
     if (d = "east") and (heading = 90) [ set f true ]
     if (d = "south") and (heading = 180) [ set f true ]
@@ -140,8 +129,29 @@ to-report Facing [d]
   report f
 end
 
-;; NOTE: There are many ways to optimize the code using only NetLogo's functions but we code the problem in the most similar way to the book ;;
+; Aditional functions ;
 
+;; Generate more random dirt
+to more-dirt
+  ask ddirt
+  [
+    ;; If dirt is less than the dirt-threshold defined by user
+    if count ddirt < new-dirt-threshold
+    ;; Create new dirt (defined by user) at random position
+    [ hatch new-dirt-number [ setxy random-pxcor random-pycor ] ]
+  ]
+end
+
+;; Cardinal orientation to NetLogo's heading
+to-report orientation [d]
+  if d = "north" [report 0]
+  if d = "east" [report 90]
+  if d = "south" [report 180]
+  if d = "west" [report 270]
+end
+
+
+;; NOTE: There are many ways to optimize the code using only NetLogo's functions but we code the problem in the most similar way to the book ;;
 
 
 
@@ -258,7 +268,7 @@ SWITCH
 72
 new-dirt?
 new-dirt?
-0
+1
 1
 -1000
 
@@ -271,7 +281,7 @@ new-dirt-number
 new-dirt-number
 0
 50
-0
+4
 1
 1
 NIL
@@ -282,11 +292,11 @@ SLIDER
 178
 206
 211
-new-dirt-treshold
-new-dirt-treshold
+new-dirt-threshold
+new-dirt-threshold
 0
 10
-0
+2
 1
 1
 NIL
