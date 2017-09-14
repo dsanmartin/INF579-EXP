@@ -238,8 +238,9 @@ to drop-beer
   set total-beers-delivered total-beers-delivered + 2
 end
 
+;; Get money to reach 10
 to get-money
-  set money robot-money
+  set money money + (10 - money)
 end
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
