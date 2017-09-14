@@ -129,7 +129,7 @@ to-report Facing [d]
   report f
 end
 
-; Aditional functions ;
+; Additional functions ;
 
 ;; Generate more random dirt
 to more-dirt
@@ -152,7 +152,6 @@ end
 
 
 ;; NOTE: There are many ways to optimize the code using only NetLogo's functions but we code the problem in the most similar way to the book ;;
-
 
 
 @#$#@#$#@
@@ -281,7 +280,7 @@ new-dirt-number
 new-dirt-number
 0
 50
-4
+15
 1
 1
 NIL
@@ -294,9 +293,9 @@ SLIDER
 211
 new-dirt-threshold
 new-dirt-threshold
-0
-10
 2
+10
+4
 1
 1
 NIL
