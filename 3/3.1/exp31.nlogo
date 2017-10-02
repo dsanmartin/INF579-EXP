@@ -2,339 +2,83 @@ __includes ["bdi.nls" "communication.nls"]
 
 ;;; A model that has explicit communication between agents
 
-breed [owners owner]
-breed [robots robot]
-breed [supermarkets supermarket]
-breed [banks bank]
-breed [refris refri]
+breed [arms arm]
 
-robots-own [beer money intentions beliefs incoming-queue total-beers-delivered]
-owners-own [beer intentions beliefs incoming-queue]
+arms-own [hold intentions beliefs incoming-queue]
 
 ;;; Set the system
 
 to setup
   ca
 
-  setup-refri
-  setup-robot
-  setup-owner
-  setup-supermarket
-  setup-banks
+  setup-arm
 
   reset-ticks
 end
 
-to setup-refri
-  create-refris 1
-  [ set shape "refrigerator"
-    set color 9
-    set size 3
-    setxy 5 0
-  ]
-end
-
-to setup-banks
-  create-banks 1
-    [set shape "bank"
-      set color red
-     set size 4
-     setxy -10 10
-     set label "Bank"
-    ]
-
-end
-
-to setup-robot
-  create-robots 1 [
-    set shape "robot"
-    set size 4
-    setxy  5 0
-    set color green
-    set heading 0
-    ask patch-here [set pcolor grey]
-
-    set beer 0
-    set total-beers-delivered 0
-    set money robot-money
-    set intentions []
-    set incoming-queue []
-    set beliefs []
-    add-intention "waiting-for-commands" "false"
-    add-belief create-belief "robot-location" "frigde"
-  ]
-end
-
-
-to setup-owner
-  create-owners 1 [
-    set shape "person business"
-    set color 66
-    set size 3
-    setxy  0 0
-    set beer 0
-    set intentions []
-    set incoming-queue []
-    set beliefs []
-    add-intention "want-some-beer" "false"
-
-  ]
-end
-
-to setup-supermarket
-  create-supermarkets 1 [
-    set shape "building store"
-    set size 3
-    setxy  15 15
-    set color cyan
-    set label "SuperMarket"
+to setup-arm
+  create-arms 1
+  [
+    set hold ""
   ]
 end
 
 to run-simulation
-  ask robots [execute-intentions]
-  ask owners [execute-intentions]
-
+  ;ask arms ;;[execute-intentions]
+  show On A B
   tick
 end
 
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;;; Owners Actions
-
-to process-message
-  let msg get-message
-  if get-performative msg = "inform"
-     [
-      if get-content msg = "no-beer" [add-intention "ask-for-beer" "true"]
-      if get-content msg = "have-beer"
-         [
-           add-intention "waiting-for-my-drink" "true"
-           send add-content "bring-some" create-reply "request" msg
-           ]
-     ]
+;; Predicates
+to-report On [x y]
+  ifelse x = y
+  [ report True ]
+  [ report False ]
 end
 
-;;; Initial owner intetion.
-to want-some-beer
-  send add-receiver my-robot add-content "beer?" create-message "query"
-  add-intention "process-message" "true"
-  add-intention "wait-for-beer" "message-is-here"
-  add-belief create-belief "have-beer" "no" show-beliefs set beliefs []
+to-report OnTable [x]
+  ifelse x = "table"
+  [ report True ]
+  [ report False ]
 end
 
-;;; Waiting for the drink and consuming it when it arrives
-to waiting-for-my-drink
-
-  add-intention "drink-beer" "no-beer"
-  add-intention "wait-for-beer" "have-beer"
-
-
+to-report Clear [x]
+  let r True
+  if x = "A" [ if B = "A" or C = "A" [ set r False ] ]
+  if x = "B" [ if A = "B" or C = "B" [ set r False ] ]
+  if x = "C" [ if A = "C" or B = "C" [ set r False ] ]
+  report r
 end
 
-to ask-for-beer
-  add-intention "waiting-for-my-drink" "true"
-  send add-receiver my-robot add-content "beer?" create-message "request"
+to-report Holding [x]
+  ifelse hold = x
+  [ report True ]
+  [ report False ]
 end
 
-;;; If there is a message in the queue
-to-report message-is-here
-   report get-message-no-remove != "no_message"
+to-report ArmEmpty
+  ifelse hold = ""
+  [ report True ]
+  [ report False ]
 end
 
-to wait-for-beer
-  ;;; do nothing
+;; Actions
+to Stack [x y]
+  if Clear y and Holding x
+  [
+
+  ]
 end
-
-
-to drink-beer
-
-  add-belief create-belief "have-beer" "yes" show-beliefs set beliefs []
-  if beer > 0 [set beer beer - 1 ]
-end
-
-;;; Owners Sensors
-to-report have-beer
-  report beer > 0
-end
-
-to-report no-beer
-   report beer = 0
-end
-
-to-report my-robot
-  report [who] of one-of robots
-end
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-
-;;; Main intention that listens and responds to messages.
-to waiting-for-commands
-  let msg get-message
-  if msg = "no_message" [stop]
-
-  if get-performative msg = "request" and get-content msg = "beer?" [add-intention "get-beer" "true"]
-  if get-performative msg = "request" and get-content msg = "bring-some" [add-intention "deliver-beer" "true"]
-  if get-performative msg = "query" and get-content msg = "beer?"
-     [ ifelse have-beer
-        [send add-content "have-beer" create-reply "inform" msg]
-        [send add-content "no-beer" create-reply "inform" msg]
-     ]
-
-end
-
-;;; delivers beer and moves back to the original position. Obviously this is applicable
-;;; when the robot has beer.
-to deliver-beer
-   add-intention "move-to-position" "at-position"
-   add-intention "drop-beer" "true"
-   add-intention "move-to-owner" "at-owner"
-end
-
-;;; Plan for getting some beer from the supermarket and delivering it to the owner.
-to get-beer
-   add-intention "deliver-beer" "true"
-   add-intention "buy-beer" "have-beer"
-   add-intention "move-to-supermarket" "at-supermarket"
-    if (money < 10) [
-     add-intention "get-money" "true"
-     add-intention "move-to-bank" "at-bank"
-   ]
-
-end
-
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;;; Robot Actions
-to move-to-supermarket
-  face one-of supermarkets
-  fd 1
-end
-
-to move-to-owner
-  face one-of owners
-  fd 1
-end
-
-to move-to-bank
-  face one-of banks
-  fd 1
-end
-
-to move-to-position
-  face one-of patches with [pcolor = grey]
-  fd 1
-end
-
-to buy-beer
-  if money >= 10
-    [set beer beer + 10
-     set money  money - 10
-      ]
-end
-
-to drop-beer
-  ask one-of owners in-radius 1.5 [set beer beer + 2]
-  set beer beer - 2
-  set total-beers-delivered total-beers-delivered + 2
-end
-
-;; Get money to reach 10
-to get-money
-  set money money + (10 - money)
-end
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;;; Robot reporters
-to-report at-owner
-
-   if any? owners in-radius 1 [set beliefs [] add-belief create-belief "robot-location" "owner"]
-   show-beliefs
-   if exists-belief ["robot-location" "owner"]
-   [set beliefs [] report true ]
-
-   set beliefs []
-   report false
-
-;report any? owners in-radius 1
-
-
-end
-
-to-report at-bank
-
-   if any? banks in-radius 1 [set beliefs [] add-belief create-belief "robot-location" "bank"]
-   show-beliefs
-   if exists-belief ["robot-location" "bank"]
-   [set beliefs [] report true ]
-
-   set beliefs []
-   report false
-
-  ;report  any? banks in-radius 1
-end
-
-
-to-report at-supermarket
-
-   if any? supermarkets in-radius 1 [set beliefs [] add-belief create-belief "robot-location" "supermarket"]
-   show-beliefs
-   if exists-belief ["robot-location" "supermarket"]
-   [set beliefs [] report true ]
-
-   set beliefs []
-   report false
-
- ;  report any? supermarkets in-radius 1
-
-end
-
-to-report at-position
-
-   if pcolor = grey [set beliefs [] add-belief create-belief "robot-location" "fridge"]
-   show-beliefs
-   if exists-belief ["robot-location" "fridge"]
-   [set beliefs [] report true ]
-
-   set beliefs []
-   report false
-
- ; report pcolor = grey
-end
-
-;******************************************
-
-;to show-beliefs
-;
-;
-;
-;if show_beliefs [
-;
-;    if who_shows = "owners" and not empty? [beliefs] of one-of owners
-;    [ask owners [output-show word "BEL: " beliefs]]
-;
-;    if who_shows = "robots" and not empty? [beliefs] of one-of robots
-;    [ask robots [output-show word "BEL: " beliefs]]
-;
-;    if who_shows = "both"
-;    [if not empty?  [beliefs] of one-of owners [ask owners [output-show word "BEL: " beliefs]]
-;     if not empty? [beliefs] of one-of robots [ask robots [output-show word "BEL: " beliefs]]
-;
-;    ]
-;
-;  ]
-;
-;end
-;******************************************
 @#$#@#$#@
 GRAPHICS-WINDOW
-390
-10
-895
-536
+510
+17
+890
+418
 16
 16
-15.0
+11.212121212121213
 1
 9
 1
@@ -371,17 +115,6 @@ NIL
 NIL
 1
 
-SWITCH
-183
-262
-354
-295
-show-intentions
-show-intentions
-1
-1
--1000
-
 BUTTON
 85
 25
@@ -416,69 +149,10 @@ NIL
 NIL
 1
 
-MONITOR
-4
-103
-168
-148
-Owner Beer
-[beer] of one-of owners
-17
-1
-11
-
-MONITOR
-175
-104
-338
-149
-Robot beer
-[beer] of one-of robots
-17
-1
-11
-
-SLIDER
-201
-64
-373
-97
-robot-money
-robot-money
-0
-100
-8
-1
-1
-NIL
-HORIZONTAL
-
-MONITOR
-7
-156
-169
-201
-NIL
-[money] of one-of robots
-17
-1
-11
-
-SWITCH
-1
-262
-175
-295
-show_messages
-show_messages
-1
-1
--1000
-
 PLOT
 7
-352
-385
+445
+256
 572
 Beer
 NIL
@@ -494,17 +168,6 @@ PENS
 "Nr. beers Owner" 1.0 0 -2674135 true "" "plot [beer] of one-of owners"
 "Nr. beers Robot" 1.0 0 -14730904 true "" "plot [beer] of one-of robots"
 "Money Robot" 1.0 0 -14439633 true "" "plot [money] of one-of robots"
-
-MONITOR
-175
-157
-335
-202
-Total Beers
-[total-beers-delivered] of one-of robots
-17
-1
-11
 
 OUTPUT
 903
@@ -548,25 +211,127 @@ NIL
 1
 
 CHOOSER
-183
-296
-321
-341
+194
+396
+332
+441
 who_shows
 who_shows
 "robots" "owners" "both"
 2
 
 SWITCH
-2
-301
-174
-334
+12
+396
+184
+429
 show_beliefs
 show_beliefs
 0
 1
 -1000
+
+TEXTBOX
+11
+117
+230
+147
+Initial Configuration (blocks on)
+12
+0.0
+1
+
+CHOOSER
+10
+142
+148
+187
+A
+A
+"table" "B" "C"
+0
+
+CHOOSER
+156
+142
+294
+187
+B
+B
+"table" "A" "C"
+1
+
+CHOOSER
+298
+142
+436
+187
+C
+C
+"table" "A" "B"
+0
+
+SWITCH
+14
+348
+188
+381
+show_messages
+show_messages
+1
+1
+-1000
+
+SWITCH
+194
+350
+365
+383
+show-intentions
+show-intentions
+1
+1
+-1000
+
+TEXTBOX
+11
+211
+226
+241
+Final Configuration (blocks on)
+12
+0.0
+1
+
+CHOOSER
+9
+238
+147
+283
+A-final
+A-final
+"table" "B" "C"
+0
+
+CHOOSER
+154
+239
+292
+284
+B-final
+B-final
+"table" "A" "C"
+0
+
+CHOOSER
+300
+239
+438
+284
+C-final
+C-final
+"table" "A" "B"
+0
 
 @#$#@#$#@
 ## WHAT IS IT?
