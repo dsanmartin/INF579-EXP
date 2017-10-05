@@ -29,6 +29,12 @@ to run-simulation
   tick
 end
 
+;; Beliefs-revision-function¿
+to-report brf [ bel rho ]
+
+  report bel
+end
+
 
 ;; Predicates
 to-report On [x y]
