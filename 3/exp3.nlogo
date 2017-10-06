@@ -1,60 +1,201 @@
 __includes ["bdi.nls" "communication.nls"]
 
-;;; A model that has explicit communication between agents
+globals [errors]
 
+;; Elements of blocks world
 breed [arms arm]
+breed [A]
+breed [B]
+breed [C]
 
 arms-own [hold intentions beliefs incoming-queue]
+A-own [top bottom]
+B-own [top bottom]
+C-own [top bottom]
 
-;;; Set the system
-
+;;; Set the world
 to setup
   ca
-
+  ask patches [ set pcolor white ]
+  set errors false
   setup-arm
+  setup-A
+  setup-B
+  setup-C
 
   reset-ticks
 end
 
+
 to setup-arm
   create-arms 1
   [
-    set hold ""
+    set color white
+    set hold nobody
+    set beliefs []
   ]
 end
 
+to setup-A
+  set-default-shape A "square"
+  create-A 1
+  [
+    set color red
+    set top nobody
+    set bottom "table"
+    setxy 0 0
+  ]
+end
+
+to setup-B
+  set-default-shape B "square"
+  create-B 1
+  [
+    set color blue
+    set top nobody
+    set bottom "table"
+    setxy 1 0
+  ]
+end
+
+to setup-C
+  set-default-shape C "square"
+  create-C 1
+  [
+    set color green
+    set top nobody
+    set bottom "table"
+    setxy 2 0
+  ]
+end
+
+;; Control drag movement of block
+;; Based on Uri Wilensky's Mouse Drag One Example
+;; http://modelingcommons.org/browse/one_model/2330
+to mouse-manager
+  if mouse-down? [
+    let candidate min-one-of turtles [distancexy mouse-xcor mouse-ycor]
+    if [distancexy mouse-xcor mouse-ycor] of candidate < 1 [
+      ;; The WATCH primitive puts a "halo" around the watched turtle.
+      watch candidate
+      while [mouse-down?] [
+        ;; If we don't force the view to update, the user won't
+        ;; be able to see the turtle moving around.
+        display
+        ;; The SUBJECT primitive reports the turtle being watched.
+        ask subject [ setxy round mouse-xcor round mouse-ycor ]
+      ]
+      ;; Undoes the effects of WATCH.  Can be abbreviated RP.
+      reset-perspective
+    ]
+  ]
+end
+
+;; Configure initial world
+to initial-world
+  blocks-status
+end
+
+;; Configure final world
+to final-world
+  blocks-status
+end
+
+;; Check blocks status
+to blocks-status
+  ask A
+  [
+     let ax pxcor
+     let ay pycor
+     if ay = 0 and bottom != "table" [ set bottom "table" ]
+     ask B [ if ax = pxcor and ay + 1 = pycor [ set bottom A ask A [ set top B ] ] ]
+     ask C [ if ax = pxcor and ay + 1 = pycor [ set bottom A ask A [ set top C ] ] ]
+  ]
+
+  ask B
+  [
+     let bx pxcor
+     let by pycor
+     if by = 0 and bottom != "table" [ set bottom "table" ]
+     ask A [ if bx = pxcor and by + 1 = pycor [ set bottom B ask B [ set top A ] ] ]
+     ask C [ if bx = pxcor and by + 1 = pycor [ set bottom B ask B [ set top C ] ] ]
+  ]
+
+  ask C
+  [
+     let cx pxcor
+     let cy pycor
+     if cy = 0 and bottom != "table" [ set bottom "table" ]
+     ask B [ if cx = pxcor and cy + 1 = pycor [ set bottom C ask C [ set top B ] ] ]
+     ask A [ if cx = pxcor and cy + 1 = pycor [ set bottom C ask C [ set top A ] ] ]
+  ]
+
+  if check-error [ show "error" set errors true ]
+
+end
+
+;; Check if a block is 'flying'
+to-report check-error
+  let er false
+  ask A [ if pycor > 0 and bottom = "table" [ set er true ] ]
+  ask B [ if pycor > 0 and bottom = "table" [ set er true ] ]
+  ask C [ if pycor > 0 and bottom = "table" [ set er true ] ]
+  report er
+end
+
 to run-simulation
-  ;ask arms ;;[execute-intentions]
-  show On A B
+  if errors [ stop ]
+  mouse-manager
+  blocks-status
+  brf
   tick
 end
 
-;; Beliefs-revision-function¿
-to-report brf [ bel rho ]
+;; Beliefs-revision-function
+to brf ;;[ bel rho ]
 
-  report bel
+  ask arms
+  [
+    ;; Check block A predicates
+    ifelse On A B [ add-belief create-belief "On" "A B" ][ let bel ["On" "A B"] remove-belief bel ]
+    ifelse On A C [ add-belief create-belief "On" "A C" ][ let bel ["On" "A C"] remove-belief bel ]
+    ifelse OnTable A [ add-belief create-belief "OnTable" "A" ][ let bel ["OnTable" "A"] remove-belief bel ]
+    ifelse Clear A [ add-belief create-belief "Clear" "A" ][ let bel ["Clear" "A"] remove-belief bel ]
+
+    ;; Check block B predicates
+    ifelse On B A [ add-belief create-belief "On" "B A" ][ let bel ["On" "B A"] remove-belief bel ]
+    ifelse On B C [ add-belief create-belief "On" "B C" ][ let bel ["On" "B C"] remove-belief bel ]
+    ifelse OnTable B [ add-belief create-belief "OnTable" "B" ][ let bel ["OnTable" "B"] remove-belief bel ]
+    ifelse Clear B [ add-belief create-belief "Clear" "B" ][ let bel ["Clear" "B"] remove-belief bel ]
+
+    ;; Cleck block C predicates
+    ifelse On C A [ add-belief create-belief "On" "C A" ][ let bel ["On" "C A"] remove-belief bel ]
+    ifelse On C B [ add-belief create-belief "On" "C B" ][ let bel ["On" "C B"] remove-belief bel ]
+    ifelse OnTable C [ add-belief create-belief "OnTable" "C" ][ let bel ["OnTable" "C"] remove-belief bel ]
+    ifelse Clear C [ add-belief create-belief "Clear" "C" ][ let bel ["Clear" "C"] remove-belief bel ]
+
+    show-beliefs
+  ]
+
 end
-
 
 ;; Predicates
 to-report On [x y]
-  ifelse x = y
-  [ report True ]
-  [ report False ]
+  let o false
+  ask x [ if bottom = y [ set o true] ]
+  report o
 end
 
 to-report OnTable [x]
-  ifelse x = "table"
-  [ report True ]
-  [ report False ]
+  let ot false
+  ask x [ if bottom = "table" [ set ot true ] ]
+  report ot
 end
 
 to-report Clear [x]
-  let r True
-  if x = "A" [ if B = "A" or C = "A" [ set r False ] ]
-  if x = "B" [ if A = "B" or C = "B" [ set r False ] ]
-  if x = "C" [ if A = "C" or B = "C" [ set r False ] ]
-  report r
+  let cl false
+  ask x [ if top = nobody [ set cl True ] ]
+  report cl
 end
 
 to-report Holding [x]
@@ -64,10 +205,11 @@ to-report Holding [x]
 end
 
 to-report ArmEmpty
-  ifelse hold = ""
+  ifelse hold = nobody
   [ report True ]
   [ report False ]
 end
+;; End predicates
 
 ;; Actions
 to Stack [x y]
@@ -78,13 +220,13 @@ to Stack [x y]
 end
 @#$#@#$#@
 GRAPHICS-WINDOW
-510
-17
-890
-418
-16
-16
-11.212121212121213
+383
+10
+693
+341
+-1
+-1
+100.0
 1
 9
 1
@@ -94,10 +236,10 @@ GRAPHICS-WINDOW
 0
 0
 1
--16
-16
--16
-16
+0
+2
+0
+2
 1
 1
 1
@@ -105,10 +247,10 @@ ticks
 30.0
 
 BUTTON
-6
-25
-79
-58
+70
+29
+143
+62
 NIL
 setup
 NIL
@@ -122,29 +264,12 @@ NIL
 1
 
 BUTTON
-85
-25
-148
-58
+149
+29
+212
+62
 Run
 run-simulation
-NIL
-1
-T
-OBSERVER
-NIL
-NIL
-NIL
-NIL
-1
-
-BUTTON
-5
-63
-191
-96
-Run (cont)
-run-simulation
 T
 1
 T
@@ -154,29 +279,9 @@ NIL
 NIL
 NIL
 1
-
-PLOT
-7
-445
-256
-572
-Beer
-NIL
-NIL
-0.0
-10.0
-0.0
-10.0
-true
-true
-"" ""
-PENS
-"Nr. beers Owner" 1.0 0 -2674135 true "" "plot [beer] of one-of owners"
-"Nr. beers Robot" 1.0 0 -14730904 true "" "plot [beer] of one-of robots"
-"Money Robot" 1.0 0 -14439633 true "" "plot [money] of one-of robots"
 
 OUTPUT
-903
+700
 10
 1404
 623
@@ -217,71 +322,41 @@ NIL
 1
 
 CHOOSER
-194
-396
-332
-441
+198
+229
+336
+274
 who_shows
 who_shows
 "robots" "owners" "both"
 2
 
 SWITCH
-12
-396
-184
-429
-show_beliefs
-show_beliefs
-0
-1
--1000
-
-TEXTBOX
-11
-117
-230
-147
-Initial Configuration (blocks on)
-12
-0.0
-1
-
-CHOOSER
-10
-142
-148
-187
-A
-A
-"table" "B" "C"
-0
-
-CHOOSER
-156
-142
-294
-187
-B
-B
-"table" "A" "C"
-1
-
-CHOOSER
-298
-142
-436
-187
-C
-C
-"table" "A" "B"
-0
-
-SWITCH
-14
-348
+16
+229
 188
-381
+262
+show_beliefs
+show_beliefs
+0
+1
+-1000
+
+TEXTBOX
+23
+84
+103
+116
+Initial world
+12
+0.0
+1
+
+SWITCH
+18
+181
+192
+214
 show_messages
 show_messages
 1
@@ -289,55 +364,59 @@ show_messages
 -1000
 
 SWITCH
-194
-350
-365
-383
+198
+183
+369
+216
 show-intentions
 show-intentions
-1
+0
 1
 -1000
 
 TEXTBOX
-11
-211
-226
-241
-Final Configuration (blocks on)
+187
+86
+307
+116
+Final world
 12
 0.0
 1
 
-CHOOSER
+BUTTON
 9
-238
-147
-283
-A-final
-A-final
-"table" "B" "C"
-0
+109
+118
+142
+Save
+initial-world
+NIL
+1
+T
+OBSERVER
+NIL
+NIL
+NIL
+NIL
+1
 
-CHOOSER
-154
-239
-292
-284
-B-final
-B-final
-"table" "A" "C"
-0
-
-CHOOSER
-300
-239
-438
-284
-C-final
-C-final
-"table" "A" "B"
-0
+BUTTON
+175
+108
+287
+141
+Save
+final-world
+NIL
+1
+T
+OBSERVER
+NIL
+NIL
+NIL
+NIL
+1
 
 @#$#@#$#@
 ## WHAT IS IT?
