@@ -1,4 +1,4 @@
-__includes ["bdi.nls" "communication.nls"]
+__includes ["bdi.nls"]
 
 globals [errors]
 
@@ -8,7 +8,7 @@ breed [A]
 breed [B]
 breed [C]
 
-arms-own [hold intentions beliefs incoming-queue]
+arms-own [hold beliefs desires intentions]
 A-own [top bottom]
 B-own [top bottom]
 C-own [top bottom]
@@ -26,16 +26,20 @@ to setup
   reset-ticks
 end
 
-
+;; Robot arm setup
 to setup-arm
   create-arms 1
   [
     set color white
     set hold nobody
     set beliefs []
+    set intentions []
+    set desires []
+    add-intention "get-final-world" "false"
   ]
 end
 
+;; Block A setup
 to setup-A
   set-default-shape A "square"
   create-A 1
@@ -47,6 +51,7 @@ to setup-A
   ]
 end
 
+;; Block B setup
 to setup-B
   set-default-shape B "square"
   create-B 1
@@ -58,6 +63,7 @@ to setup-B
   ]
 end
 
+;; Block C setup
 to setup-C
   set-default-shape C "square"
   create-C 1
@@ -66,28 +72,6 @@ to setup-C
     set top nobody
     set bottom "table"
     setxy 2 0
-  ]
-end
-
-;; Control drag movement of block
-;; Based on Uri Wilensky's Mouse Drag One Example
-;; http://modelingcommons.org/browse/one_model/2330
-to mouse-manager
-  if mouse-down? [
-    let candidate min-one-of turtles [distancexy mouse-xcor mouse-ycor]
-    if [distancexy mouse-xcor mouse-ycor] of candidate < 1 [
-      ;; The WATCH primitive puts a "halo" around the watched turtle.
-      watch candidate
-      while [mouse-down?] [
-        ;; If we don't force the view to update, the user won't
-        ;; be able to see the turtle moving around.
-        display
-        ;; The SUBJECT primitive reports the turtle being watched.
-        ask subject [ setxy round mouse-xcor round mouse-ycor ]
-      ]
-      ;; Undoes the effects of WATCH.  Can be abbreviated RP.
-      reset-perspective
-    ]
   ]
 end
 
@@ -143,11 +127,13 @@ to-report check-error
   report er
 end
 
+;; Simulation run
 to run-simulation
   if errors [ stop ]
   mouse-manager
-  blocks-status
-  brf
+  blocks-status ;; In this case this function 'see' all the world
+  brf ;; Here the function shows the current beliefs
+  ask arms [ set desires options beliefs intentions ];; Here the function search for the possible desires
   tick
 end
 
@@ -177,6 +163,25 @@ to brf ;;[ bel rho ]
     show-beliefs
   ]
 
+end
+
+;; Options function
+to-report options [Bel I]
+  let D (list)
+  if intention-done "get-final-world" = false
+  [
+    ;; Add posible desires
+    set D lput (list "holding" A) D
+  ]
+
+  report D
+end
+
+;; Intention to get final world - to implement
+to-report get-final-world
+  ; ifelse initial world = final world
+  ;[ report true ]
+  ;[ report false ]
 end
 
 ;; Predicates
@@ -211,18 +216,32 @@ to-report ArmEmpty
 end
 ;; End predicates
 
-;; Actions
-to Stack [x y]
-  if Clear y and Holding x
-  [
-
+;; Control drag movement of block
+;; Based on Uri Wilensky's Mouse Drag One Example
+;; http://modelingcommons.org/browse/one_model/2330
+to mouse-manager
+  if mouse-down? [
+    let candidate min-one-of turtles [distancexy mouse-xcor mouse-ycor]
+    if [distancexy mouse-xcor mouse-ycor] of candidate < 1 [
+      ;; The WATCH primitive puts a "halo" around the watched turtle.
+      watch candidate
+      while [mouse-down?] [
+        ;; If we don't force the view to update, the user won't
+        ;; be able to see the turtle moving around.
+        display
+        ;; The SUBJECT primitive reports the turtle being watched.
+        ask subject [ setxy round mouse-xcor round mouse-ycor ]
+      ]
+      ;; Undoes the effects of WATCH.  Can be abbreviated RP.
+      reset-perspective
+    ]
   ]
 end
 @#$#@#$#@
 GRAPHICS-WINDOW
-383
+315
 10
-693
+625
 341
 -1
 -1
@@ -281,18 +300,18 @@ NIL
 1
 
 OUTPUT
-700
+708
 10
 1404
 623
 9
 
 BUTTON
-835
-589
-901
-622
-Borrar
+559
+394
+631
+427
+Clean
 clear-output
 NIL
 1
@@ -304,37 +323,20 @@ NIL
 NIL
 1
 
-BUTTON
-777
-553
-901
-586
-Línea separación
-output-print \"\"\noutput-print \"======================================================================================\"\noutput-print \"\"
-NIL
-1
-T
-OBSERVER
-NIL
-NIL
-NIL
-NIL
-1
-
 CHOOSER
-198
+60
+310
 229
-336
-274
+355
 who_shows
 who_shows
 "robots" "owners" "both"
 2
 
 SWITCH
-16
+62
 229
-188
+229
 262
 show_beliefs
 show_beliefs
@@ -353,10 +355,10 @@ Initial world
 1
 
 SWITCH
-18
-181
-192
-214
+62
+189
+229
+222
 show_messages
 show_messages
 1
@@ -364,10 +366,10 @@ show_messages
 -1000
 
 SWITCH
-198
-183
-369
-216
+61
+270
+230
+303
 show-intentions
 show-intentions
 0
@@ -416,6 +418,16 @@ NIL
 NIL
 NIL
 NIL
+1
+
+TEXTBOX
+126
+168
+156
+186
+Log
+12
+0.0
 1
 
 @#$#@#$#@
