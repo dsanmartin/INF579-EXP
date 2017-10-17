@@ -5,9 +5,15 @@ globals [errors]
 ;; Elements of blocks world
 breed [arms arm]
 breed [blocks block]
+breed [A]
+breed [B]
+breed [C]
 
 arms-own [hold beliefs desires intentions]
 blocks-own [top bottom]
+A-own [top bottom]
+B-own [top bottom]
+C-own [top bottom]
 
 ;;; Set the world
 to setup
@@ -18,7 +24,7 @@ to setup
   ;setup-A
   ;setup-B
   ;setup-C
-  ;;setup-blocks
+  setup-blocks
 
   reset-ticks
 end
@@ -32,24 +38,7 @@ to setup-arm
     set beliefs []
     set intentions []
     set desires []
-
-    ; B_0
-    add-belief create-belief "ArmEmpty" ""
-    add-belief create-belief "OnTable" "A"
-    add-belief create-belief "OnTable" "B"
-    add-belief create-belief "OnTable" "C"
-    add-belief create-belief "Clear" "A"
-    add-belief create-belief "Clear" "B"
-    add-belief create-belief "Clear" "C"
-
-    ;; I_0
     add-intention "get-final-world" "false"
-
-    ; Show B_0
-    show-beliefs
-
-    ; Show I_0
-    execute-intentions
   ]
 end
 
@@ -81,47 +70,142 @@ to setup-blocks
 
 end
 
+;; Block A setup
+to setup-A
+  set-default-shape A "square"
+  create-A 1
+  [
+    set color red
+    set top nobody
+    set bottom "table"
+    setxy 0 0
+  ]
+end
+
+;; Block B setup
+to setup-B
+  set-default-shape B "square"
+  create-B 1
+  [
+    set color blue
+    set top nobody
+    set bottom "table"
+    setxy 1 0
+  ]
+end
+
+;; Block C setup
+to setup-C
+  set-default-shape C "square"
+  create-C 1
+  [
+    set color green
+    set top nobody
+    set bottom "table"
+    setxy 2 0
+  ]
+end
+
+;; Configure initial world
+to initial-world
+  blocks-status
+end
+
+;; Configure final world
+to final-world
+  blocks-status
+end
+
+;; Check blocks status
+to blocks-status
+  ask A
+  [
+     let ax pxcor
+     let ay pycor
+     if ay = 0 and bottom != "table" [ set bottom "table" ]
+     ask B [ if ax = pxcor and ay + 1 = pycor [ set bottom A ask A [ set top B ] ] ]
+     ask C [ if ax = pxcor and ay + 1 = pycor [ set bottom A ask A [ set top C ] ] ]
+  ]
+
+  ask B
+  [
+     let bx pxcor
+     let by pycor
+     if by = 0 and bottom != "table" [ set bottom "table" ]
+     ask A [ if bx = pxcor and by + 1 = pycor [ set bottom B ask B [ set top A ] ] ]
+     ask C [ if bx = pxcor and by + 1 = pycor [ set bottom B ask B [ set top C ] ] ]
+  ]
+
+  ask C
+  [
+     let cx pxcor
+     let cy pycor
+     if cy = 0 and bottom != "table" [ set bottom "table" ]
+     ask B [ if cx = pxcor and cy + 1 = pycor [ set bottom C ask C [ set top B ] ] ]
+     ask A [ if cx = pxcor and cy + 1 = pycor [ set bottom C ask C [ set top A ] ] ]
+  ]
+
+  if check-error [ show "error" set errors true ]
+
+end
+
+;; Check if a block is 'flying'
+to-report check-error
+  let er false
+  ask A [ if pycor > 0 and bottom = "table" [ set er true ] ]
+  ask B [ if pycor > 0 and bottom = "table" [ set er true ] ]
+  ask C [ if pycor > 0 and bottom = "table" [ set er true ] ]
+  report er
+end
 
 ;; Simulation run
 to run-simulation
   if errors [ stop ]
-  ;;mouse-manager
-  ;;ask blocks [
-  ;;  if who = 1 [show "A" show top show bottom]
-  ;;]
+  mouse-manager
+  ask blocks [
+   if who = 1 [show "A" show top show bottom]
+  ]
   ;blocks-status ;; In this case this function 'see' all the world
   ;brf ;; Here the function shows the current beliefs
   ;ask arms [ set desires options beliefs intentions ];; Here the function search for the possible desires
-  ;;asdf
-
-  ; Show B_0
-  agent-control-loop
-
-  ;ask arms [ show exists-belief ["Clear" "A"] ]
+  asdf
   tick
 end
 
-to agent-control-loop
-  ask arms
+to asdf
+  let i 1
+  while [i <= 3]
   [
-    ; get next percept rho
-    ; brf B rho
-    ; options B I
-    ; filter B D I
-    ; let pi plan B I
-    ; execute pi
+    ask turtle i [show top]
+    set i i + 1
   ]
-  Pickup "B"
-  Stack "B" "A"
-  Pickup "C"
-  Stack "C" "B"
-
 end
-
-;;;;; Agent Control Loop Functions ;;;;;
 
 ;; Beliefs-revision-function
 to brf ;;[ bel rho ]
+
+  ask arms
+  [
+    ;; Check block A predicates
+    ifelse On A B [ add-belief create-belief "On" "A B" ][ let bel ["On" "A B"] remove-belief bel ]
+    ifelse On A C [ add-belief create-belief "On" "A C" ][ let bel ["On" "A C"] remove-belief bel ]
+    ifelse OnTable A [ add-belief create-belief "OnTable" "A" ][ let bel ["OnTable" "A"] remove-belief bel ]
+    ifelse Clear A [ add-belief create-belief "Clear" "A" ][ let bel ["Clear" "A"] remove-belief bel ]
+
+    ;; Check block B predicates
+    ifelse On B A [ add-belief create-belief "On" "B A" ][ let bel ["On" "B A"] remove-belief bel ]
+    ifelse On B C [ add-belief create-belief "On" "B C" ][ let bel ["On" "B C"] remove-belief bel ]
+    ifelse OnTable B [ add-belief create-belief "OnTable" "B" ][ let bel ["OnTable" "B"] remove-belief bel ]
+    ifelse Clear B [ add-belief create-belief "Clear" "B" ][ let bel ["Clear" "B"] remove-belief bel ]
+
+    ;; Cleck block C predicates
+    ifelse On C A [ add-belief create-belief "On" "C A" ][ let bel ["On" "C A"] remove-belief bel ]
+    ifelse On C B [ add-belief create-belief "On" "C B" ][ let bel ["On" "C B"] remove-belief bel ]
+    ifelse OnTable C [ add-belief create-belief "OnTable" "C" ][ let bel ["OnTable" "C"] remove-belief bel ]
+    ifelse Clear C [ add-belief create-belief "Clear" "C" ][ let bel ["Clear" "C"] remove-belief bel ]
+
+    show-beliefs
+  ]
 
 end
 
@@ -131,39 +215,20 @@ to-report options [Bel I]
   if intention-done "get-final-world" = false
   [
     ;; Add posible desires
-  ;;  set D lput (list "holding" A) D
+    set D lput (list "holding" A) D
   ]
 
   report D
 end
 
-;; Filter function
-to-report filterr [B D I]
-  report I
-end
-
-;; Plan function
-to-report plan [B I]
-  let pii 0
-  report pii
-end
-
-;; Execute function
-to execute [pii]
-  ;; Execute plan pi
-end
-
-;; End Agent Control Loop Functions ;;
-
 ;; Intention to get final world - to implement
-to get-final-world
+to-report get-final-world
   ; ifelse initial world = final world
   ;[ report true ]
   ;[ report false ]
 end
 
-;;;;; Predicates ;;;;;
-
+;; Predicates
 to-report On [x y]
   let o false
   ask x [ if bottom = y [ set o true] ]
@@ -193,88 +258,7 @@ to-report ArmEmpty
   [ report True ]
   [ report False ]
 end
-
-;;;;; End predicates ;;;;
-
-
-;;;;; Actions ;;;;;
-
-to Stack [x y]
-  ask arms
-  [
-    ;; Precondition
-    if (exists-belief list "Clear" y) and (exists-belief list "Holding" x)
-    [
-      ;; Delete
-      remove-belief list "Clear" y
-      remove-belief list "Holding" x
-
-      ;; Add
-      add-belief create-belief "ArmEmpty" ""
-      add-belief create-belief "On" list x y
-
-    ]
-    show-beliefs
-  ]
-end
-
-to UnStack [x y]
-  ask arms
-  [
-    ;; Precondition
-    if (exists-belief list "On" list x y) and (exists-belief list "Clear" x) and (exists-belief list "ArmEmpty" "")
-    [
-      ;; Delete
-      remove-belief list "On" list x y
-      remove-belief list "ArmEmpty" ""
-
-      ;; Add
-      add-belief create-belief "Holding" x
-      add-belief create-belief "Clear" y
-
-    ]
-    show-beliefs
-  ]
-end
-
-to Pickup [x]
-  ask arms
-  [
-    ;; Precondition
-    if (exists-belief list "Clear" x) and (exists-belief list "OnTable" x) and (exists-belief list "ArmEmpty" "")
-    [
-      ;; Delete
-      remove-belief list "OnTable" x
-      remove-belief list "ArmEmpty" ""
-
-      ;; Add
-      add-belief create-belief "Holding" x
-
-    ]
-    show-beliefs
-  ]
-end
-
-to PutDown [x]
-  ask arms
-  [
-    ;; Precondition
-    if (exists-belief list "Holding" x)
-    [
-      ;; Delete
-      remove-belief list "Holding" x
-
-      ;; Add
-      add-belief create-belief "ArmEmpty" ""
-      add-belief create-belief "OnTable" x
-
-    ]
-    show-beliefs
-  ]
-end
-
-
-;;;;; End Actions ;;;;;
+;; End predicates
 
 ;; Control drag movement of block
 ;; Based on Uri Wilensky's Mouse Drag One Example
@@ -493,19 +477,19 @@ Log
 @#$#@#$#@
 ## WHAT IS IT?
 
-The "Blocks world" example from wooldridge. A robot arm has to move three blocks.
+This is the famous "Robot Beer" example from wooldridge. A robot is instructed to get some beer from the supermarket.
 
 ## HOW IT WORKS
 
-The robot arm has to move the blocks from an initial configuration of blocks to a final or objective configuration.
+The owner requests beer from the robot, which in turn travels to the fridge and gets one. If the fridge is empty, then it rushes to the supermarket to get some. That is in the case it does have some money to afford it; if the latter is not the case, then it rushes to the bank first.
 
 ## HOW TO USE IT
 
-Click setup and run. Then move a block to check the world status.
+Set the amount of money the user has press setup and then run the experiment.
 
 ## NETLOGO FEATURES
 
-Model Uses bdi.nls for beliefs and intention handling.
+Model Uses bdi.nls for intention handling and communication.nls for passing FIPA like messages.
 
 ## CREDITS AND REFERENCES
 
