@@ -77,17 +77,13 @@ end
 to setup-B0
   add-belief create-belief "ArmEmpty" ""
   ;add-belief create-belief "OnTable" "A"
-  ;add-belief create-belief "OnTable" "B"
-  ;add-belief create-belief "OnTable" "C"
-  ;add-belief create-belief "Clear" "A"
+  add-belief create-belief "OnTable" "B"
+  add-belief create-belief "OnTable" "C"
+  add-belief create-belief "Clear" "A"
   ;add-belief create-belief "Clear" "B"
-  ;add-belief create-belief "Clear" "C"
-  ;add-belief create-belief "On" list "A" "B"
-
-  add-belief create-belief "OnTable" "A"
-  add-belief create-belief "On" list "B" "A"
-  add-belief create-belief "On" list "C" "B"
   add-belief create-belief "Clear" "C"
+
+  add-belief create-belief "On" list "A" "B"
 
 end
 
@@ -102,7 +98,7 @@ to setup-I0
   add-intention "OnTable" "A"
   add-intention "On" list "B" "A"
   add-intention "On" list "C" "B"
-  add-intention "Clear" "C"
+  add-intention "Clear" "B"
 end
 
 
@@ -134,8 +130,6 @@ to agent-control-loop
     ; filter B D I
     ; let pi plan B I
     ; execute pi
-    show-beliefs
-
   ]
 
   ;Pickup "B"
@@ -181,7 +175,7 @@ end
 
 ;; Execute function
 to execute [pii]
-  ;
+  ;; Execute plan pi
 end
 
 ;; End Agent Control Loop Functions ;;
@@ -203,6 +197,35 @@ end
 
 ;;;;; Predicates ;;;;;
 
+to-report On [x y]
+  let o false
+  ask x [ if bottom = y [ set o true] ]
+  report o
+end
+
+to-report OnTable [x]
+  let ot false
+  ask x [ if bottom = "table" [ set ot true ] ]
+  report ot
+end
+
+to-report Clear [x]
+  let cl false
+  ask x [ if top = nobody [ set cl True ] ]
+  report cl
+end
+
+to-report Holding [x]
+  ifelse hold = x
+  [ report True ]
+  [ report False ]
+end
+
+to-report ArmEmpty
+  ifelse hold = nobody
+  [ report True ]
+  [ report False ]
+end
 
 ;;;;; End predicates ;;;;
 
@@ -229,7 +252,6 @@ to Stack [x y]
 end
 
 to UnStack [x y]
-
   ask arms
   [
     ;; Precondition
@@ -285,23 +307,62 @@ to PutDown [x]
   ]
 end
 
-;;;;; End Actions ;;;;;
 
 ;;;;; Plans ;;;;;
 
 to TopLevelPlan
-  show "TopLevelPlan"
+
   ask arms
   [
-    MoveBlockOnTable "C"
-    MoveBlockOnClear "B" "C"
-    MoveBlockOnClear "A" "C"
-    show beliefs
+    foreach beliefs
+    [
+      ;show word "INT:" ?
+      if get-final-world [ show "OK" stop]
+
+      let bel ?
+
+      foreach intentions [
+        show word "INT: " intentions
+        ifelse ? = bel [
+          remove-intention ?
+        ]
+        [
+          let a item 0 ?
+          let b item 1 ?
+          if a = "Clear" [ show word "Cleaning " b ClearBlock b]
+          if a = "OnTable" [ show word "Moving on table " b MoveBlockOnTable b ]
+          if a = "On" [ show word "Moving block " b MoveBlockOnClear item 0 b item 1 b ]
+          show word "BEL: " beliefs
+        ]
+
+      ]
+
+    ]
+  ]
+end
+
+to TopLevelPlan2
+
+  ask arms
+  [
+    foreach intentions
+    [
+      show word "INT:" ?
+      if get-final-world [ show "OK" stop]
+
+
+      let a item 0 ?
+      let b item 1 ?
+      if a = "Clear" [ show word "Cleaning " b ClearBlock b]
+      if a = "OnTable" [ show word "Moving on table " b MoveBlockOnTable b ]
+      if a = "On" [ show word "Moving block " b MoveBlockOnClear item 0 b item 1 b ]
+      show beliefs
+    ]
   ]
 end
 
 to ClearBlock [x]
-  show "CrearBlock"
+
   let y nobody
   ask arms
   [
@@ -313,8 +374,6 @@ to ClearBlock [x]
         set y item 0 belief-content ?
       ]
     ]
-
-    show beliefs
   ]
 
   ; If x has a block upside, then put down
@@ -323,22 +382,17 @@ to ClearBlock [x]
     UnStack y x
     Putdown y
   ]
-
 end
 
 to MoveBlockOnClear [x y]
-
-  show "MoveBlockOnClear"
   ClearBlock x
   ClearBlock y
   Pickup x
   Stack x y
-
-  show beliefs
 end
 
 to MoveBlockOnTable [x]
-  show "MoveBlockOntable"
+
   let y nobody
   ask arms
   [
@@ -350,8 +404,6 @@ to MoveBlockOnTable [x]
         set y item 1 belief-content ?
       ]
     ]
-
-    show beliefs
   ]
 
   ; If x has a block upside, then put down
@@ -360,9 +412,34 @@ to MoveBlockOnTable [x]
     UnStack x y
     Putdown x
   ]
-
 end
+
+
 ;;;;; Plans ;;;
+
+;;;;; End Actions ;;;;;
+
+;; Control drag movement of block
+;; Based on Uri Wilensky's Mouse Drag One Example
+;; http://modelingcommons.org/browse/one_model/2330
+to mouse-manager
+  if mouse-down? [
+    let candidate min-one-of turtles [distancexy mouse-xcor mouse-ycor]
+    if [distancexy mouse-xcor mouse-ycor] of candidate < 1 [
+      ;; The WATCH primitive puts a "halo" around the watched turtle.
+      watch candidate
+      while [mouse-down?] [
+        ;; If we don't force the view to update, the user won't
+        ;; be able to see the turtle moving around.
+        display
+        ;; The SUBJECT primitive reports the turtle being watched.
+        ask subject [ setxy round mouse-xcor round mouse-ycor ]
+      ]
+      ;; Undoes the effects of WATCH.  Can be abbreviated RP.
+      reset-perspective
+    ]
+  ]
+end
 @#$#@#$#@
 GRAPHICS-WINDOW
 315
