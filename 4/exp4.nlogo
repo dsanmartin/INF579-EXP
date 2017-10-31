@@ -1,17 +1,8 @@
-globals [rocks]
+globals [rocks behaviours]
 breed [spacecraft]
+breed [vehicle vehicles]
 
-to mother-ship
-  set-default-shape spacecraft "pentagon" ;; Use a truck as vacuum
-  create-spacecraft 1 ;; Create vacuum
-  [
-    set color red
-    setxy 0 0 ;; Put vacuum at random position
-    set size 5
-  ]
-end
-
-
+;; Wold ;;
 to generate-clusters
   ask n-of rock-clusters patches [ set pcolor gray ]
   repeat 20 [
@@ -25,24 +16,73 @@ to generate-obstacles
   ask n-of 200 patches [ if pcolor != gray [ set pcolor black ] ]
 end
 
+;; Spacecraft
+to mother-ship
+  set-default-shape spacecraft "pentagon" ;; Use a pentagon as spacecraft
+  create-spacecraft 1 ;; Create vacuum
+  [
+    set color red
+    setxy 0 0 ;; Put spacecraft at center of world
+    set size 5
+  ]
+end
+
+;; Vehicles
+to generate-vehicles
+  set-default-shape vehicle "car" ;; Use
+  create-vehicle 1 ;; Create vacuum
+  [
+    set color blue
+    setxy 0 0 ;; Put vehicle at mother ship
+    set size 1
+  ]
+end
+
 to setup
   ca
   ask patches [ set pcolor white ]
+  set behaviours ["change-direction" "drop-samples" "travel-up-gradient" "pick-sample-up" "move-randomly"]
   mother-ship
   generate-clusters
   generate-obstacles
+  generate-vehicles
   set rocks count patches with [pcolor = gray]
   show rocks
   reset-ticks
 end
 
 to go
-  set rocks rocks - 1
+  ;set rocks rocks - 1
   if rocks = 0 [stop]
-  show rocks
-
+  ;show rocks
+  ask vehicle [ move-randomly drop-samples]
   tick
 end
+
+
+;; Behaviours
+to change-direction
+  set heading random 360
+end
+
+to drop-samples
+  if pcolor = gray [ set pcolor white ]
+end
+
+to travel-up-gradient
+  move-to turtle 0
+end
+
+to pick-sample-up
+
+end
+
+to move-randomly
+  set heading random 360
+  fd 1
+end
+
+
 @#$#@#$#@
 GRAPHICS-WINDOW
 352
