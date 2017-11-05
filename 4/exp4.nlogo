@@ -2,18 +2,58 @@ globals [rocks behaviours]
 breed [spacecraft]
 breed [vehicle vehicles]
 
-;; Wold ;;
+vehicle-own [sample]
+
+to setup
+  ca
+  ask patches [ set pcolor white ]
+  set behaviours [
+    [1 "change-direction"]
+    [2 "drop-samples"]
+    [3 "travel-up-gradient"]
+    [4 "pick-sample-up"]
+    [5 "move-randomly"]
+  ]
+  mother-ship
+  generate-clusters
+  ;generate-hills
+  ;generate-holes
+  generate-vehicles
+  set rocks count patches with [pcolor = gray]
+  ;show rocks
+  reset-ticks
+end
+
+;; Wold setup ;;
 to generate-clusters
-  ask n-of rock-clusters patches [ set pcolor gray ]
+  ask n-of rock-clusters patches [ if pcolor = white [ set pcolor gray ] ]
   repeat 20 [
     ask patches with [pcolor = gray] [
-      ask one-of neighbors4 [ set pcolor gray ]
+      ask one-of neighbors4 [ if pcolor = white [ set pcolor gray ] ]
     ]
   ]
 end
 
 to generate-obstacles
   ask n-of 200 patches [ if pcolor != gray [ set pcolor black ] ]
+end
+
+to generate-hills
+  ask n-of 10 patches [ if pcolor = white [ set pcolor green ] ]
+  repeat 20 [
+    ask patches with [pcolor = green] [
+      ask one-of neighbors4 [ if pcolor = white [ set pcolor green ] ]
+    ]
+  ]
+end
+
+to generate-holes
+  ask n-of 20 patches [ if pcolor = white [ set pcolor black ] ]
+  repeat 3 [
+    ask patches with [pcolor = black] [
+      ask one-of neighbors [ if pcolor = white [ set pcolor black ] ]
+    ]
+  ]
 end
 
 ;; Spacecraft
@@ -29,33 +69,43 @@ end
 
 ;; Vehicles
 to generate-vehicles
-  set-default-shape vehicle "car" ;; Use
-  create-vehicle 1 ;; Create vacuum
+  set-default-shape vehicle "car" ;;
+  create-vehicle 1 ;; Create vehicles
   [
     set color blue
     setxy 0 0 ;; Put vehicle at mother ship
-    set size 1
+    set size 5
+    set sample False
   ]
 end
 
-to setup
-  ca
-  ask patches [ set pcolor white ]
-  set behaviours ["change-direction" "drop-samples" "travel-up-gradient" "pick-sample-up" "move-randomly"]
-  mother-ship
-  generate-clusters
-  generate-obstacles
-  generate-vehicles
-  set rocks count patches with [pcolor = gray]
-  show rocks
-  reset-ticks
-end
 
-to go
-  ;set rocks rocks - 1
+
+to go-2
+  set rocks count patches with [pcolor = gray]
   if rocks = 0 [stop]
-  ;show rocks
-  ask vehicle [ move-randomly drop-samples]
+  ask vehicle [
+    ;if detect-obstacle [ change-direction ]
+    ;if carrying-samples and at-base [ drop-samples ]
+    ;if carrying-samples and at-base = false [ travel-up-gradient ]
+    ;if detect-sample [ pick-sample-up ]
+    ;if true [ move-randomly ]
+    ifelse detect-obstacle
+    [ change-direction ]
+    [
+       ifelse carrying-samples and at-base
+       [ drop-samples ]
+       [
+         ifelse carrying-samples and at-base = false
+         [ travel-up-gradient ]
+         [
+           ifelse detect-sample
+           [ pick-sample-up ]
+           [ move-randomly ]
+         ]
+       ]
+    ]
+  ]
   tick
 end
 
@@ -66,21 +116,114 @@ to change-direction
 end
 
 to drop-samples
-  if pcolor = gray [ set pcolor white ]
+  set sample false
 end
 
 to travel-up-gradient
-  move-to turtle 0
+  face turtle 0
+  ;move-to turtle 0
+  fd 1
 end
 
 to pick-sample-up
-
+  set pcolor white
+  set sample true
 end
 
 to move-randomly
-  set heading random 360
+  rt random 360
   fd 1
 end
+
+to-report detect-obstacle
+  ifelse [pcolor] of patch-ahead 1 = black or [pcolor] of patch-ahead 1 = green
+  [ report true ]
+  [ report false ]
+end
+
+to-report carrying-samples
+  ifelse sample
+  [ report true ]
+  [ report false ]
+end
+
+to-report detect-sample
+  ifelse pcolor = gray
+  [ report true ]
+  [ report false ]
+end
+
+to-report at-base
+  ;ifelse any? spacecraft
+  ifelse xcor = 0 and ycor = 0
+    [ report true ]
+    [ report false ]
+end
+
+
+; Subsumption architecture
+to-report action [p]
+  let fired nobody
+  let selected nobody
+
+  ; begin
+  ;set fired [
+  ;  [1 "change-direction"]
+  ;  [2 "drop-samples"]
+  ;  [3 "travel-up-gradient"]
+  ;  [4 "pick-sample-up"]
+  ;  [5 "move-randomly"]
+  ;]
+
+  ;set fired item (p - 1) behaviour
+  set fired getFired p
+  show fired
+
+  foreach fired [
+    let c item 0 ?
+    let a item 1 ?
+
+    foreach behaviours [
+      let cprime item 0 ?
+      let aprime item 1 ?
+      if not( cprime < c ) [ report a ] ;[ report "do-nothing" ]
+    ]
+  ]
+
+end
+
+to do-nothing
+end
+
+to go
+  let ac "do-nothing"
+  ask vehicle [
+    show sample
+    set ac action see
+    show ac
+    run ac
+  ]
+end
+
+
+to-report getFired [s]
+  let fired []
+  foreach s [
+    set fired lput item (? - 1) behaviours fired
+  ]
+  report fired
+end
+
+to-report see
+  let s []
+  if detect-obstacle [ set s lput 1 s ]
+  if carrying-samples and at-base [ set s lput 2 s ]
+  if carrying-samples and at-base = false [ set s lput 3 s ]
+  if detect-sample [ set s lput 4 s ]
+  if true [ set s lput 5 s ]
+  report s
+end
+
 
 
 @#$#@#$#@
@@ -137,7 +280,7 @@ rock-clusters
 rock-clusters
 1
 10
-7
+10
 1
 1
 NIL
