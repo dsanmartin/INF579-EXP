@@ -1,33 +1,68 @@
 globals [rocks behaviours]
 breed [spacecraft]
-breed [vehicle vehicles]
+breed [vehicles vehicle]
 
-vehicle-own [sample]
+vehicles-own [sample]
+patches-own [gradient crumbs]
 
+
+;;; SETUP ;;
 to setup
   ca
   ask patches [ set pcolor white ]
-  set behaviours [
-    [1 "change-direction"]
-    [2 "drop-samples"]
-    [3 "travel-up-gradient"]
-    [4 "pick-sample-up"]
-    [5 "move-randomly"]
+  ask patches [ set crumbs 0 ] ; Put 0 for crumbs
+  ifelse cooperative
+  [
+    set behaviours [
+      [1 "change-direction"]
+      [2 "drop-samples"]
+      [3 "drop-crumbs-travel-up-gradient"]
+      [4 "pick-sample-up"]
+      [5 "pickup-crumb-travel-down-gradient"]
+      [6 "move-randomly"]
+    ]
   ]
+  [
+    set behaviours [
+      [1 "change-direction"]
+      [2 "drop-samples"]
+      [3 "travel-up-gradient"]
+      [4 "pick-sample-up"]
+      [5 "move-randomly"]
+    ]
+  ]
+
+  start-gradient
   mother-ship
   generate-clusters
   ;generate-hills
   ;generate-holes
   generate-vehicles
   set rocks count patches with [pcolor = gray]
-  ;show rocks
   reset-ticks
 end
 
-;; Wold setup ;;
+;;; GO ;;;
+to go
+  ;set rocks count patches with [pcolor = gray]
+  if rocks = 0 [stop]
+  ;let ac "do-nothing"
+  ask patches [
+   if crumbs = 2 and pcolor != gray [ set pcolor red ]
+   if crumbs = 1 and pcolor != gray [ set pcolor blue ]
+   ;if crumbs = 0 and pcolor != gray [ set pcolor white ]
+  ]
+  ask vehicles [
+    run action see
+  ]
+  tick
+end
+
+;;; Wold setup ;;;
+
 to generate-clusters
   ask n-of rock-clusters patches [ if pcolor = white [ set pcolor gray ] ]
-  repeat 20 [
+  repeat 10 [
     ask patches with [pcolor = gray] [
       ask one-of neighbors4 [ if pcolor = white [ set pcolor gray ] ]
     ]
@@ -63,14 +98,14 @@ to mother-ship
   [
     set color red
     setxy 0 0 ;; Put spacecraft at center of world
-    set size 5
+    set size 10
   ]
 end
 
 ;; Vehicles
 to generate-vehicles
-  set-default-shape vehicle "car" ;;
-  create-vehicle 1 ;; Create vehicles
+  set-default-shape vehicles "car" ;;
+  create-vehicles vehicles-number ;; Create vehicles
   [
     set color blue
     setxy 0 0 ;; Put vehicle at mother ship
@@ -79,49 +114,47 @@ to generate-vehicles
   ]
 end
 
+;;; End world setup ;;
 
 
-to go-2
-  set rocks count patches with [pcolor = gray]
-  if rocks = 0 [stop]
-  ask vehicle [
-    ;if detect-obstacle [ change-direction ]
-    ;if carrying-samples and at-base [ drop-samples ]
-    ;if carrying-samples and at-base = false [ travel-up-gradient ]
-    ;if detect-sample [ pick-sample-up ]
-    ;if true [ move-randomly ]
-    ifelse detect-obstacle
-    [ change-direction ]
-    [
-       ifelse carrying-samples and at-base
-       [ drop-samples ]
-       [
-         ifelse carrying-samples and at-base = false
-         [ travel-up-gradient ]
-         [
-           ifelse detect-sample
-           [ pick-sample-up ]
-           [ move-randomly ]
-         ]
-       ]
-    ]
-  ]
-  tick
+;;; Gradient implementation ;;;
+
+; Starts gradient on the base
+to start-gradient
+  ; Create gradient based of distance between patches and center of world
+  ; It's multiplied by -1 to have maximum gradient at center
+  ask patches [set gradient -1 * (distancexy-nowrap 0 0)]
 end
 
+; Face to neighbor with lower value of gradient
+to gradient-down
+  face min-one-of neighbors [gradient]
+end
 
-;; Behaviours
+; Face to neighbor with higher value of gradient
+to gradient-up
+  face max-one-of neighbors [gradient]
+end
+
+;;; End gradient implementation ;;;
+
+
+;;; Behaviours ;;;
+
 to change-direction
-  set heading random 360
+  set heading heading + random 45 - random 45
+  ;set heading random 360
 end
 
 to drop-samples
+  set rocks rocks - 1
   set sample false
 end
 
 to travel-up-gradient
-  face turtle 0
+  ;face turtle 0
   ;move-to turtle 0
+  gradient-up
   fd 1
 end
 
@@ -131,9 +164,39 @@ to pick-sample-up
 end
 
 to move-randomly
-  rt random 360
+  ;rt random 360
+  set heading heading + random 45 - random 45
   fd 1
 end
+
+;; Collaborative
+
+to travel-down-gradient
+  gradient-down
+  fd 1
+end
+
+to drop-crumbs
+  set crumbs crumbs + 2
+end
+
+to pickup-crumb
+  set crumbs crumbs - 1
+end
+
+to drop-crumbs-travel-up-gradient
+  drop-crumbs
+  travel-up-gradient
+end
+
+to pickup-crumb-travel-down-gradient
+  pickup-crumb
+  travel-down-gradient
+end
+;;; End behaviours ;;;
+
+
+;;; Conditions ;;;
 
 to-report detect-obstacle
   ifelse [pcolor] of patch-ahead 1 = black or [pcolor] of patch-ahead 1 = green
@@ -155,76 +218,72 @@ end
 
 to-report at-base
   ;ifelse any? spacecraft
-  ifelse xcor = 0 and ycor = 0
-    [ report true ]
-    [ report false ]
+  ifelse pxcor = 0 and pycor = 0
+  [ report true ]
+  [ report false ]
 end
 
+;; Collaborative
+to-report sense-crumbs
+  ifelse crumbs > 0
+  [ report true ]
+  [ report false ]
+end
 
-; Subsumption architecture
+;;; End conditions ;;;
+
+
+;;; Subsumption architecture ;;;
 to-report action [p]
-  let fired nobody
-  let selected nobody
-
   ; begin
-  ;set fired [
-  ;  [1 "change-direction"]
-  ;  [2 "drop-samples"]
-  ;  [3 "travel-up-gradient"]
-  ;  [4 "pick-sample-up"]
-  ;  [5 "move-randomly"]
-  ;]
-
-  ;set fired item (p - 1) behaviour
-  set fired getFired p
-  show fired
+  let fired getFired p ; Behaviours that fire
 
   foreach fired [
-    let c item 0 ?
-    let a item 1 ?
+    ; Get fired info
+    let c item 0 ? ; Priority of fired
+    let a item 1 ? ; Action of fired
 
-    foreach behaviours [
+    ; Check over fired for some with higher priority
+    foreach fired [
       let cprime item 0 ?
       let aprime item 1 ?
-      if not( cprime < c ) [ report a ] ;[ report "do-nothing" ]
+      if not( cprime < c ) [ report a ]
     ]
   ]
-
 end
 
-to do-nothing
-end
-
-to go
-  let ac "do-nothing"
-  ask vehicle [
-    show sample
-    set ac action see
-    show ac
-    run ac
-  ]
-end
-
-
+; Compute fired behaviours given the percepts of see
 to-report getFired [s]
   let fired []
-  foreach s [
-    set fired lput item (? - 1) behaviours fired
+  foreach s [ ; For each condition saw
+    set fired lput item (? - 1) behaviours fired ; Put possible behaviour
   ]
   report fired
 end
 
+; Check the environment
 to-report see
   let s []
-  if detect-obstacle [ set s lput 1 s ]
-  if carrying-samples and at-base [ set s lput 2 s ]
-  if carrying-samples and at-base = false [ set s lput 3 s ]
-  if detect-sample [ set s lput 4 s ]
-  if true [ set s lput 5 s ]
+
+  ifelse cooperative
+  [
+    if detect-obstacle [ set s lput 1 s ] ; Conditions for (5.1)
+    if carrying-samples and at-base [ set s lput 2 s ] ; Conditions for (5.6)
+    if carrying-samples and not at-base [ set s lput 3 s ] ; Conditions for (5.7)
+    if detect-sample [ set s lput 4 s ] ; Conditions for (5.4)
+    if sense-crumbs [ set s lput 5 s ] ; Conditions for (5.8)
+    if true [ set s lput 6 s ] ; Conditions for (5.5)
+  ]
+  [
+    if detect-obstacle [ set s lput 1 s ] ; Conditions for (5.1)
+    if carrying-samples and at-base [ set s lput 2 s ] ; Conditions for (5.2)
+    if carrying-samples and not at-base [ set s lput 3 s ] ; Conditions for (5.3)
+    if detect-sample [ set s lput 4 s ] ; Conditions for (5.4)
+    if true [ set s lput 5 s ] ; Conditions for (5.5)
+  ]
+
   report s
 end
-
-
 
 @#$#@#$#@
 GRAPHICS-WINDOW
@@ -255,10 +314,10 @@ ticks
 30.0
 
 BUTTON
-78
-72
-151
-105
+37
+22
+110
+55
 NIL
 setup
 NIL
@@ -272,10 +331,10 @@ NIL
 1
 
 SLIDER
-43
-146
-215
-179
+33
+107
+208
+140
 rock-clusters
 rock-clusters
 1
@@ -287,10 +346,10 @@ NIL
 HORIZONTAL
 
 PLOT
-44
-226
-244
-376
+24
+206
+224
+356
 Rocks
 NIL
 NIL
@@ -305,10 +364,10 @@ PENS
 "default" 1.0 0 -7500403 true "" "plot rocks"
 
 BUTTON
-172
-69
-235
-102
+144
+22
+207
+55
 NIL
 go
 T
@@ -320,6 +379,32 @@ NIL
 NIL
 NIL
 1
+
+SLIDER
+36
+62
+210
+95
+vehicles-number
+vehicles-number
+5
+100
+50
+5
+1
+NIL
+HORIZONTAL
+
+SWITCH
+44
+157
+193
+190
+cooperative
+cooperative
+0
+1
+-1000
 
 @#$#@#$#@
 ## WHAT IS IT?
