@@ -11,6 +11,7 @@ to setup
   ca
   ask patches [ set pcolor white ]
   ask patches [ set crumbs 0 ] ; Put 0 for crumbs
+
   ifelse cooperative
   [
     set behaviours [
@@ -35,7 +36,7 @@ to setup
   start-gradient
   mother-ship
   generate-clusters
-  ;generate-hills
+  generate-hills
   ;generate-holes
   generate-vehicles
   set rocks count patches with [pcolor = gray]
@@ -44,13 +45,11 @@ end
 
 ;;; GO ;;;
 to go
-  ;set rocks count patches with [pcolor = gray]
   if rocks = 0 [stop]
-  ;let ac "do-nothing"
-  ask patches [
-   if crumbs = 2 and pcolor != gray [ set pcolor red ]
-   if crumbs = 1 and pcolor != gray [ set pcolor blue ]
-   ;if crumbs = 0 and pcolor != gray [ set pcolor white ]
+  ask patches [ ; Check crumbs
+   if crumbs = 2 and pcolor != gray and pcolor != green [ set pcolor brown - 3]
+   if crumbs = 1 and pcolor != gray and pcolor != green [ set pcolor brown ]
+   if crumbs = 0 and pcolor != gray and pcolor != green [ set pcolor white ]
   ]
   ask vehicles [
     run action see
@@ -74,10 +73,10 @@ to generate-obstacles
 end
 
 to generate-hills
-  ask n-of 10 patches [ if pcolor = white [ set pcolor green ] ]
-  repeat 20 [
+  ask n-of 10 patches [ if pcolor = white [ set pcolor green set gradient -100] ]
+  repeat 10 [
     ask patches with [pcolor = green] [
-      ask one-of neighbors4 [ if pcolor = white [ set pcolor green ] ]
+      ask one-of neighbors [ if pcolor = white [ set pcolor green set gradient -100 ] ]
     ]
   ]
 end
@@ -142,8 +141,8 @@ end
 ;;; Behaviours ;;;
 
 to change-direction
-  set heading heading + random 45 - random 45
-  ;set heading random 360
+  ;set heading heading + random 45 - random 45
+  set heading random 360
 end
 
 to drop-samples
@@ -152,8 +151,6 @@ to drop-samples
 end
 
 to travel-up-gradient
-  ;face turtle 0
-  ;move-to turtle 0
   gradient-up
   fd 1
 end
@@ -164,9 +161,48 @@ to pick-sample-up
 end
 
 to move-randomly
-  ;rt random 360
-  set heading heading + random 45 - random 45
+  ;set heading heading + random 45 - random 45
   fd 1
+  rt random 360
+
+
+
+  ;let m random-pos
+  ;show m
+  ;set heading m
+  ;fd 1
+end
+
+to-report random-pos
+  let vs 5
+  let mv random 360
+
+  ; Check world's limits
+  ;ifelse not( abs(pxcor) > 50 )  or not( abs(pycor) > 50 )[
+  if pxcor = (50 - vs) [
+    ifelse pycor = (50 - vs)
+    [ set mv 90 + random 90  ]
+    [ ifelse pycor = (-50 + vs) [ set mv random 90][ set mv random 180 ]]
+  ];[ set mv random 180]
+  if pxcor = (-50 + vs) [
+    ifelse pycor = (50 - vs)
+    [ set mv 180 + random 90  ]
+    [ ifelse pycor = (-50 + vs) [ set mv 270 + random 90 ][ set mv 180 + random 180 ]]
+  ];[ set mv 180 + random 180 ]
+  ;]
+  if pycor = (50 - vs) [
+    ifelse pxcor = (50 - vs)
+    [ set mv 90 + random 90  ]
+    [ ifelse pxcor = (-50 + vs) [ set mv 180 + random 90][ set mv 90 + random 180 ]]
+  ];[ set mv random 180]
+  if pycor = (-50 + vs) [
+    ifelse pxcor = (50 - vs)
+    [ set mv random 90  ]
+    [ ifelse pxcor = (-50 + vs) [ set mv 270 + random 90 ][ set mv random 90 ]]
+  ];[ set mv 180 + random 180 ]
+
+  ;[ set mv random 360 ]
+  report mv
 end
 
 ;; Collaborative
@@ -199,7 +235,9 @@ end
 ;;; Conditions ;;;
 
 to-report detect-obstacle
-  ifelse [pcolor] of patch-ahead 1 = black or [pcolor] of patch-ahead 1 = green
+  ifelse [pcolor] of patch-ahead 5 = black or [pcolor] of patch-ahead 5 = green
+  ;ifelse [pcolor] of neighbors = black or [pcolor] of neighbors = green
+  ;neighbor
   [ report true ]
   [ report false ]
 end
@@ -284,7 +322,6 @@ to-report see
 
   report s
 end
-
 @#$#@#$#@
 GRAPHICS-WINDOW
 352
@@ -389,7 +426,7 @@ vehicles-number
 vehicles-number
 5
 100
-50
+100
 5
 1
 NIL
@@ -402,7 +439,7 @@ SWITCH
 190
 cooperative
 cooperative
-0
+1
 1
 -1000
 
