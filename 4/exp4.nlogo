@@ -35,9 +35,9 @@ to setup
 
   start-gradient
   mother-ship
-  generate-clusters
+  generate-rocks
   generate-hills
-  ;generate-holes
+  generate-holes
   generate-vehicles
   set rocks count patches with [pcolor = gray]
   reset-ticks
@@ -45,21 +45,18 @@ end
 
 ;;; GO ;;;
 to go
-  if rocks = 0 [stop]
-  ask patches [ ; Check crumbs
-   if crumbs = 2 and pcolor != gray and pcolor != green [ set pcolor brown - 3]
-   if crumbs = 1 and pcolor != gray and pcolor != green [ set pcolor brown ]
-   if crumbs = 0 and pcolor != gray and pcolor != green [ set pcolor white ]
-  ]
-  ask vehicles [
-    run action see
-  ]
+  if rocks = 0 [stop]  ;; No more rocks
+  show-crumbs
+
+  ;; See the state of world and apply action using subsumption architecture
+  ask vehicles [ run action see ]
+
   tick
 end
 
 ;;; Wold setup ;;;
 
-to generate-clusters
+to generate-rocks
   ask n-of rock-clusters patches [ if pcolor = white [ set pcolor gray ] ]
   repeat 10 [
     ask patches with [pcolor = gray] [
@@ -68,25 +65,26 @@ to generate-clusters
   ]
 end
 
-to generate-obstacles
-  ask n-of 200 patches [ if pcolor != gray [ set pcolor black ] ]
-end
-
 to generate-hills
-  ask n-of 10 patches [ if pcolor = white [ set pcolor green set gradient -100] ]
-  repeat 10 [
+  ask n-of 10 patches [ if pcolor = white [ set pcolor green set gradient "a"] ]
+  repeat 15 [
     ask patches with [pcolor = green] [
-      ask one-of neighbors [ if pcolor = white [ set pcolor green set gradient -100 ] ]
+      ask one-of neighbors [ if pcolor = white [ set pcolor green set gradient "a" ] ]
     ]
   ]
 end
 
 to generate-holes
-  ask n-of 20 patches [ if pcolor = white [ set pcolor black ] ]
-  repeat 3 [
-    ask patches with [pcolor = black] [
-      ask one-of neighbors [ if pcolor = white [ set pcolor black ] ]
-    ]
+  ask n-of 10 patches [ if pcolor = white [ set pcolor black set gradient "a"] ]
+;  repeat 5 [
+;    ask patches with [pcolor = black] [
+;      ;ask one-of neighbors [ if pcolor = white [ set pcolor black set gradient "a" ] ]
+;      ask patches in-radius 3 [ if pcolor = white [ set pcolor black ] ]
+;    ]
+;  ]
+  ask patches with [pcolor = black] [
+    ;ask one-of neighbors [ if pcolor = white [ set pcolor black set gradient "a" ] ]
+    ask patches in-radius 2 [ if pcolor = white [ set pcolor black ] ]
   ]
 end
 
@@ -110,6 +108,15 @@ to generate-vehicles
     setxy 0 0 ;; Put vehicle at mother ship
     set size 5
     set sample False
+  ]
+end
+
+;; Show crumbs
+to show-crumbs
+  ask patches [ ; Check crumbs
+   if crumbs = 2 and pcolor != gray and pcolor != green and pcolor != black [ set pcolor brown - 3]
+   if crumbs = 1 and pcolor != gray and pcolor != green and pcolor != black [ set pcolor brown ]
+   if crumbs = 0 and pcolor != gray and pcolor != green and pcolor != black [ set pcolor white ]
   ]
 end
 
@@ -161,16 +168,16 @@ to pick-sample-up
 end
 
 to move-randomly
-  ;set heading heading + random 45 - random 45
+
   fd 1
   rt random 360
+  ;set heading heading + random 45 - random 45
 
 
-
-  ;let m random-pos
-  ;show m
-  ;set heading m
   ;fd 1
+  ;let m random-pos
+  ;set heading m
+
 end
 
 to-report random-pos
@@ -179,26 +186,26 @@ to-report random-pos
 
   ; Check world's limits
   ;ifelse not( abs(pxcor) > 50 )  or not( abs(pycor) > 50 )[
-  if pxcor = (50 - vs) [
-    ifelse pycor = (50 - vs)
+  if pxcor > (50 - vs) [
+    ifelse pycor > (50 - vs)
     [ set mv 90 + random 90  ]
-    [ ifelse pycor = (-50 + vs) [ set mv random 90][ set mv random 180 ]]
+    [ ifelse pycor < (-50 + vs) [ set mv random 90][ set mv random 180 ]]
   ];[ set mv random 180]
-  if pxcor = (-50 + vs) [
+  if pxcor < (-50 + vs) [
     ifelse pycor = (50 - vs)
     [ set mv 180 + random 90  ]
-    [ ifelse pycor = (-50 + vs) [ set mv 270 + random 90 ][ set mv 180 + random 180 ]]
+    [ ifelse pycor < (-50 + vs) [ set mv 270 + random 90 ][ set mv 180 + random 180 ]]
   ];[ set mv 180 + random 180 ]
   ;]
-  if pycor = (50 - vs) [
-    ifelse pxcor = (50 - vs)
+  if pycor > (50 - vs) [
+    ifelse pxcor > (50 - vs)
     [ set mv 90 + random 90  ]
-    [ ifelse pxcor = (-50 + vs) [ set mv 180 + random 90][ set mv 90 + random 180 ]]
+    [ ifelse pxcor < (-50 + vs) [ set mv 180 + random 90][ set mv 90 + random 180 ]]
   ];[ set mv random 180]
-  if pycor = (-50 + vs) [
-    ifelse pxcor = (50 - vs)
+  if pycor < (-50 + vs) [
+    ifelse pxcor > (50 - vs)
     [ set mv random 90  ]
-    [ ifelse pxcor = (-50 + vs) [ set mv 270 + random 90 ][ set mv random 90 ]]
+    [ ifelse pxcor < (-50 + vs) [ set mv 270 + random 90 ][ set mv random 90 ]]
   ];[ set mv 180 + random 180 ]
 
   ;[ set mv random 360 ]
@@ -237,7 +244,6 @@ end
 to-report detect-obstacle
   ifelse [pcolor] of patch-ahead 5 = black or [pcolor] of patch-ahead 5 = green
   ;ifelse [pcolor] of neighbors = black or [pcolor] of neighbors = green
-  ;neighbor
   [ report true ]
   [ report false ]
 end
@@ -425,8 +431,8 @@ SLIDER
 vehicles-number
 vehicles-number
 5
-100
-100
+50
+20
 5
 1
 NIL
