@@ -1,308 +1,353 @@
-globals [rocks behaviours]
-breed [spacecraft]
-breed [vehicles vehicle]
 
-vehicles-own [sample]
-patches-own [gradient crumbs]
+breed [sellers seller]
+breed [buyers buyer]
 
+globals [round_ turn sample deals]
+sellers-own [goal incoming store-location price min_price]
+buyers-own [goal incoming price max_price]
 
-;;; SETUP ;;
 to setup
   ca
-  ask patches [ set pcolor white ]
-  ask patches [ set crumbs 0 ] ; Put 0 for crumbs
-
-  ; Check if is a cooperative problem
-  ifelse cooperative
-  [
-    set behaviours [ ; Behaviours for cooperative experience
-      [1 "change-direction"]
-      [2 "drop-samples"]
-      [3 "drop-crumbs-travel-up-gradient"]
-      [4 "pick-sample-up"]
-      [5 "pickup-crumb-travel-down-gradient"]
-      [6 "move-randomly"]
-    ]
-  ]
-  [
-    set behaviours [ ; Behaviours for non-cooperative experience
-      [1 "change-direction"]
-      [2 "drop-samples"]
-      [3 "travel-up-gradient"]
-      [4 "pick-sample-up"]
-      [5 "move-randomly"]
-    ]
-  ]
-
-  start-gradient
-  mother-ship
-  generate-rocks
-  generate-hills
-  generate-holes
-  generate-vehicles
-  set rocks count patches with [pcolor = gray] ; Counts rocks
-  reset-ticks
+   setup-buyer-A
+   setup-buyer-B
+   setup-buyer-C
+   setup-seller-X
+   setup-seller-Y
+   setup-seller-Z
+   set sample []
+   reset-ticks
 end
 
-;;; GO ;;;
-to go
-  if rocks = 0 [stop]  ;; No more rocks
-  show-crumbs
+to setup-buyer-A
+  create-buyers 1 [
+    set label "A"
+    set goal "buy"
+    set price A_min_price
+    set max_price A_max_price
+    set incoming []
+    set shape "person"
+    set color 86
+    set size 3
+    setxy  0 0
+  ]
+end
+to setup-buyer-B
+  create-buyers 1 [
+    set label "B"
+    set goal "buy"
+    set price B_min_price
+    set max_price B_max_price
+    set incoming []
+    set shape "person"
+    set color 76
+    set size 3
+    setxy  0 0
+  ]
+end
+to setup-buyer-C
+  create-buyers 1 [
+    set label "C"
+    set goal "buy"
+    set price C_min_price
+    set max_price C_max_price
+    set incoming []
+    set shape "person"
+    set color 66
+    set size 3
+    setxy  0 0
+  ]
+end
 
-  ;; See the state of world and apply action using subsumption architecture
-  ask vehicles [ run action see ]
+to setup-seller-X
+  create-sellers 1 [
+    set label "X"
+    set goal "sell"
+    set price X_max_price
+    set min_price X_min_price
+    set incoming []
+    set shape "person"
+    set color 16
+    set size 3
+    setxy  0 0
+    set store-location []
+  ]
+end
+to setup-seller-Y
+  create-sellers 1 [
+    set label "Y"
+    set goal "sell"
+    set price Y_max_price
+    set min_price Y_min_price
+    set incoming []
+    set shape "person"
+    set color 26
+    set size 3
+    setxy  0 0
+    set store-location []
+  ]
+end
+to setup-seller-Z
+  create-sellers 1 [
+    set label "Z"
+    set goal "sell"
+    set price Z_max_price
+    set min_price Z_min_price
+    set incoming []
+    set shape "person"
+    set color 36
+    set size 3
+    setxy  0 0
+    set store-location []
+  ]
+ seller-position
+end
 
+to run-simulation
+  if round_ = max_round [ stop ]
+  go-until-empty-here
+  run-round_
+end
+
+to run-round_
+  set round_ round_ + 1
+  output-show (list "Round: " round_)
+  set turn 1
+  to-sample
+  while  [turn != 7] [
+    run-turn
+    tick
+  ]
   tick
 end
 
-;;; Wold setup ;;;
+to run-turn
+  output-show (list "Turn: " turn)
+  if sample = [] [ stop ]
+  ask one-of sample [
+    set sample remove self sample
+    if goal = "buy" [
+      let s one-of ["X" "Y" "Z"]
+      let xs one-of sellers with [label = s]
+      face xs
+      while [not any? sellers with [label = s] in-radius 2][fd 1]
+      ask_to_buy(xs)
+      rt 180
+      fd 12
+      setxy 0 0
+      go-until-empty-here
+    ]
+     if goal = "sell" [
+      let c one-of ["A" "B" "C"]
+      let xc one-of buyers with [label = c]
+      face xc
+      while [not any? buyers with [label = c] in-radius 2][fd 1]
+      ask_to_sell(xc)
+      rt 180
+      fd 12
+      let x item 0 (item 0 store-location)
+      let y item 1 (item 0 store-location)
+      setxy x y
+    ]
+  ]
+  tick
+  set turn turn + 1
+end
 
-to generate-rocks
-  ask n-of rock-clusters patches [ if pcolor = white [ set pcolor gray ] ]
-  repeat 10 [
-    ask patches with [pcolor = gray] [
-      ask one-of neighbors4 [ if pcolor = white [ set pcolor gray ] ]
+to to-sample
+  set sample []
+  ask buyers [ set sample lput self sample ]
+  ask sellers [ set sample lput self sample ]
+end
+
+to ask_to_buy [x]
+  let m (list "want to buy at price" price)
+  send_message(x)(m)(self)
+end
+
+to ask_to_sell [x]
+  let m (list "want to sell at price" price)
+  send_message(x)(m)(self)
+end
+
+to send_message[receiver message sender]
+  ask receiver [ set incoming fput (list message sender) incoming]
+  output-show (list receiver message)
+  ask receiver [ negotiate ]
+end
+
+to negotiate
+  if incoming = [] [stop]
+  let responded 0
+  let m item 0 (item 0 incoming)
+  let respond_to item 1 (item 0 incoming)
+  if m = ["not interested"] [ set incoming []
+    stop]
+  if m = ["thanks for the info"] [ set incoming []
+    stop]
+  if item 0 m = "selled at" [  set incoming []
+    stop]
+  if item 0 m = "bought at" [ set incoming []
+    stop ]
+  if goal = "buy" and (item 0 m = "want to sell at price") [
+    let offered_price item 1 m
+    if price >= offered_price [
+      let r (list "selled at" offered_price)
+      send_message(respond_to)(r)(self)
+      set deals deals + 1
+      set responded 1
+      set incoming []
+    ]
+    if price < offered_price [
+      let r (list "would buy at" price)
+      send_message(respond_to)(r)(self)
+      set responded 1
+    ]
+   ]
+  if goal = "buy" and (item 0 m = "would sell at") [
+    let offered_price item 1 m
+    update_my_price(offered_price)
+    let r (list "thanks for the info")
+    send_message(respond_to)(r)(self)
+    set responded 1
+    set incoming []
+
+   ]
+  if goal = "sell" and (item 0 m = "want to buy at price") [
+    let offered_price item 1 m
+    if price <= offered_price [
+      let r (list "bought at" offered_price)
+      send_message(respond_to)(r)(self)
+      set deals deals + 1
+      set responded 1
+    ]
+    if price > offered_price [
+      let r (list "would sell at" price)
+      send_message(respond_to)(r)(self)
+      set responded 1
+      set incoming []
+    ]
+   ]
+  if goal = "sell" and (item 0 m = "would buy at") [
+    let offered_price item 1 m
+    update_my_price(offered_price)
+    let r (list "thanks for the info")
+    send_message(respond_to)(r)(self)
+    set responded 1
+    set incoming []
+   ]
+  if responded = 0 [
+    let r (list "not interested")
+    send_message(respond_to)(r)(self)
+    set incoming []
+  ]
+end
+
+to update_my_price[offered_price]
+  if goal = "buy" [
+    let utility_i_j (100 - offered_price)
+    let utility_i_i (100 - price)
+    let risk_i ((utility_i_i - utility_i_j) / utility_i_i)
+
+    let utility_j_j (offered_price)
+    let utility_j_i (price)
+    let risk_j ((utility_j_j - utility_j_i) / utility_j_j)
+
+    while [risk_i <= risk_j and risk_i > 0 and price < max_price] [
+      set price price + 1
+      set utility_i_j (100 - offered_price)
+      set utility_i_i (100 - price)
+      set risk_i ((utility_i_i - utility_i_j) / utility_i_i)
+
+      set utility_j_j (offered_price)
+      set utility_j_i (price)
+      set risk_j ((utility_j_j - utility_j_i) / utility_j_j)
+    ]
+  ]
+  if goal = "sell" [
+    let utility_i_j (offered_price)
+    let utility_i_i (price)
+    let risk_i ((utility_i_i - utility_i_j) / utility_i_i)
+
+    let utility_j_j (100 - offered_price)
+    let utility_j_i (100 - price)
+    let risk_j ((utility_j_j - utility_j_i) / utility_j_j)
+
+    while [risk_i <= risk_j and risk_i > 0 and price > min_price] [
+      set price price - 1
+      set utility_i_j (offered_price)
+      set utility_i_i (price)
+      set risk_i ((utility_i_i - utility_i_j) / utility_i_i)
+
+      set utility_j_j (100 - offered_price)
+      set utility_j_i (100 - price)
+      set risk_j ((utility_j_j - utility_j_i) / utility_j_j)
     ]
   ]
 end
 
-;; Hills
-to generate-hills
-  ask n-of 10 patches [ if pcolor = white [ set pcolor green set gradient "a"] ]
-  repeat 15 [
-    ask patches with [pcolor = green] [
-      ask one-of neighbors [ if pcolor = white [ set pcolor green set gradient "a" ] ]
-    ]
+
+to seller-position
+  ask sellers with [label = "X"][
+    set heading 0
+    fd 13
+    set store-location fput (list int xcor int ycor) store-location
   ]
-end
-
-;; Holes
-to generate-holes
-  ask n-of 10 patches [ if pcolor = white [ set pcolor black set gradient "a"] ]
-  ask patches with [pcolor = black] [
-    ask patches in-radius 2 [ if pcolor = white [ set pcolor black set gradient "a" ] ]
+  ask sellers with [label = "Y"][
+    set heading 120
+    fd 15
+    set store-location fput (list int xcor int ycor) store-location
   ]
-end
-
-;; Spacecraft
-to mother-ship
-  set-default-shape spacecraft "pentagon" ;; Use a pentagon as spacecraft
-  create-spacecraft 1 ;; Create vacuum
-  [
-    set color red
-    setxy 0 0 ;; Put spacecraft at center of world
-    set size 10
-  ]
-end
-
-;; Vehicles
-to generate-vehicles
-  set-default-shape vehicles "car" ;;
-  create-vehicles vehicles-number ;; Create vehicles
-  [
-    set color blue
-    setxy 0 0 ;; Put vehicle at mother ship
-    set size 5
-    set sample False
-  ]
-end
-
-;; Show crumbs painting world
-to show-crumbs
-  ask patches [ ; Check crumbs
-   if crumbs > 1 and pcolor != gray and pcolor != green and pcolor != black [ set pcolor brown - 3]
-   if crumbs = 1 and pcolor != gray and pcolor != green and pcolor != black [ set pcolor brown ]
-   if crumbs = 0 and pcolor != gray and pcolor != green and pcolor != black [ set pcolor white ]
-  ]
-end
-
-;;; End world setup ;;
-
-
-;;; Gradient implementation ;;;
-
-; Starts gradient on the base
-to start-gradient
-  ; Create gradient based of distance between patches and center of world
-  ; It's multiplied by -1 to have maximum gradient at center
-  ask patches [set gradient -1 * (distancexy-nowrap 0 0)]
-end
-
-; Face to neighbor with lower value of gradient
-to gradient-down
-  face min-one-of neighbors [gradient]
-end
-
-; Face to neighbor with higher value of gradient
-to gradient-up
-  face max-one-of neighbors [gradient]
-end
-
-;;; End gradient implementation ;;;
-
-
-;;; Behaviours ;;;
-
-to change-direction
-  set heading random 360
-end
-
-to drop-samples
-  set rocks rocks - 1
-  set sample false
-end
-
-to travel-up-gradient
-  gradient-up
-  fd 1
-end
-
-to pick-sample-up
-  set pcolor white
-  set sample true
-end
-
-to move-randomly
-  fd 1
-  rt random 360
-end
-
-;; Cooperative
-
-to travel-down-gradient
-  gradient-down
-  fd 1
-end
-
-to drop-crumbs
-  set crumbs crumbs + 2
-end
-
-to pickup-crumb
-  set crumbs crumbs - 1
-end
-
-to drop-crumbs-travel-up-gradient
-  drop-crumbs
-  travel-up-gradient
-end
-
-to pickup-crumb-travel-down-gradient
-  pickup-crumb
-  travel-down-gradient
-end
-;;; End behaviours ;;;
-
-
-;;; Conditions ;;;
-
-to-report detect-obstacle
-  ifelse [pcolor] of patch-ahead 5 = black or [pcolor] of patch-ahead 5 = green
-  [ report true ]
-  [ report false ]
-end
-
-to-report carrying-samples
-  ifelse sample
-  [ report true ]
-  [ report false ]
-end
-
-to-report detect-sample
-  ifelse pcolor = gray
-  [ report true ]
-  [ report false ]
-end
-
-to-report at-base
-  ifelse pxcor = 0 and pycor = 0
-  [ report true ]
-  [ report false ]
-end
-
-;; Collaborative
-to-report sense-crumbs
-  ifelse crumbs > 0
-  [ report true ]
-  [ report false ]
-end
-
-;;; End conditions ;;;
-
-
-;;; Subsumption architecture ;;;
-to-report action [p]
-  ; begin
-  let fired getFired p ; Behaviours that fire
-
-  foreach fired [
-    ; Get fired info
-    let c item 0 ? ; Priority of fired
-    let a item 1 ? ; Action of fired
-
-    ; Check over fired for some with higher priority
-    foreach fired [
-      let cprime item 0 ?
-      let aprime item 1 ?
-      if not( cprime < c ) [ report a ]
-    ]
-  ]
-end
-
-; Compute fired behaviours given the percepts of see
-to-report getFired [s]
-  let fired []
-  foreach s [ ; For each condition saw
-    set fired lput item (? - 1) behaviours fired ; Put possible behaviour
-  ]
-  report fired
-end
-
-; Check the environment
-to-report see
-  let s []
-
-  ifelse cooperative
-  [
-    if detect-obstacle [ set s lput 1 s ] ; Conditions for (5.1)
-    if carrying-samples and at-base [ set s lput 2 s ] ; Conditions for (5.6)
-    if carrying-samples and not at-base [ set s lput 3 s ] ; Conditions for (5.7)
-    if detect-sample [ set s lput 4 s ] ; Conditions for (5.4)
-    if sense-crumbs [ set s lput 5 s ] ; Conditions for (5.8)
-    if true [ set s lput 6 s ] ; Conditions for (5.5)
-  ]
-  [
-    if detect-obstacle [ set s lput 1 s ] ; Conditions for (5.1)
-    if carrying-samples and at-base [ set s lput 2 s ] ; Conditions for (5.2)
-    if carrying-samples and not at-base [ set s lput 3 s ] ; Conditions for (5.3)
-    if detect-sample [ set s lput 4 s ] ; Conditions for (5.4)
-    if true [ set s lput 5 s ] ; Conditions for (5.5)
+  ask sellers with [label = "Z"][
+    set heading 240
+    fd 15
+    set store-location fput (list int xcor int ycor) store-location
   ]
 
-  report s
+end
+
+to go-until-empty-here  ;; buyers not overlap
+  ask buyers [
+    while [any? other buyers-here]
+      [ rt 90
+        fd 4 ]
+
+   while [any? other sellers-here]
+      [ rt 180
+        fd 2 ]
+  ]
+  ask sellers [
+    while [any? other buyers-here]
+      [ rt 180
+        fd 2 ]
+
+   while [any? other sellers-here]
+      [ rt 90
+        fd 4 ]
+  ]
+  ;;tick
 end
 @#$#@#$#@
 GRAPHICS-WINDOW
-352
+210
 10
-766
-445
-50
-50
-4.0
+649
+470
+16
+16
+13.0
 1
 10
 1
 1
 1
 0
+0
+0
 1
-1
-1
--50
-50
--50
-50
+-16
+16
+-16
+16
 0
 0
 1
@@ -310,10 +355,10 @@ ticks
 30.0
 
 BUTTON
-37
-22
-110
-55
+662
+10
+735
+43
 NIL
 setup
 NIL
@@ -326,46 +371,13 @@ NIL
 NIL
 1
 
-SLIDER
-33
-107
-208
-140
-rock-clusters
-rock-clusters
-1
-10
-10
-1
-1
-NIL
-HORIZONTAL
-
-PLOT
-24
-206
-224
-356
-Rocks
-NIL
-NIL
-0.0
-10.0
-0.0
-10.0
-true
-false
-"" ""
-PENS
-"default" 1.0 0 -7500403 true "" "plot rocks"
-
 BUTTON
-144
-22
-207
-55
+744
+10
+878
+43
 NIL
-go
+run-simulation
 T
 1
 T
@@ -377,30 +389,266 @@ NIL
 1
 
 SLIDER
-36
-62
-210
-95
-vehicles-number
-vehicles-number
-5
+987
+12
+1159
+45
+max_round
+max_round
+1
+100
 50
-20
-5
+1
 1
 NIL
 HORIZONTAL
 
-SWITCH
-44
-157
-193
-190
-cooperative
-cooperative
+SLIDER
+23
+28
+195
+61
+A_min_price
+A_min_price
 0
+100
 1
--1000
+1
+1
+NIL
+HORIZONTAL
+
+SLIDER
+22
+60
+194
+93
+A_max_price
+A_max_price
+0
+100
+80
+1
+1
+NIL
+HORIZONTAL
+
+SLIDER
+21
+100
+193
+133
+B_min_price
+B_min_price
+0
+100
+1
+1
+1
+NIL
+HORIZONTAL
+
+SLIDER
+21
+133
+193
+166
+B_max_price
+B_max_price
+0
+100
+80
+1
+1
+NIL
+HORIZONTAL
+
+SLIDER
+20
+173
+192
+206
+C_min_price
+C_min_price
+0
+100
+1
+1
+1
+NIL
+HORIZONTAL
+
+SLIDER
+20
+203
+192
+236
+C_max_price
+C_max_price
+0
+100
+80
+1
+1
+NIL
+HORIZONTAL
+
+SLIDER
+20
+279
+192
+312
+X_min_price
+X_min_price
+0
+100
+20
+1
+1
+NIL
+HORIZONTAL
+
+SLIDER
+20
+309
+192
+342
+X_max_price
+X_max_price
+0
+100
+100
+1
+1
+NIL
+HORIZONTAL
+
+SLIDER
+20
+347
+192
+380
+Y_min_price
+Y_min_price
+0
+100
+20
+1
+1
+NIL
+HORIZONTAL
+
+SLIDER
+20
+378
+192
+411
+Y_max_price
+Y_max_price
+0
+100
+100
+1
+1
+NIL
+HORIZONTAL
+
+SLIDER
+20
+422
+192
+455
+Z_min_price
+Z_min_price
+0
+100
+20
+1
+1
+NIL
+HORIZONTAL
+
+SLIDER
+20
+453
+192
+486
+Z_max_price
+Z_max_price
+0
+100
+100
+1
+1
+NIL
+HORIZONTAL
+
+MONITOR
+1186
+10
+1244
+55
+NIL
+round_
+17
+1
+11
+
+PLOT
+660
+56
+1243
+194
+Price
+NIL
+NIL
+0.0
+10.0
+0.0
+10.0
+true
+false
+"" ""
+PENS
+"default" 1.0 0 -16777216 true "" "ask turtles [\n  create-temporary-plot-pen (word who)\n  set-plot-pen-color color\n  plotxy ticks price\n]"
+
+MONITOR
+904
+10
+961
+55
+Deals
+Deals
+17
+1
+11
+
+OUTPUT
+669
+206
+1238
+462
+12
+
+TEXTBOX
+25
+12
+175
+30
+Buyers\n
+12
+0.0
+1
+
+TEXTBOX
+24
+260
+174
+278
+Sellers
+12
+0.0
+1
 
 @#$#@#$#@
 ## WHAT IS IT?
