@@ -1,4 +1,3 @@
-
 breed [sellers seller]
 breed [buyers buyer]
 
@@ -177,30 +176,30 @@ end
 
 to negotiate
   if incoming = [] [stop]
-  let responded 0
+  let answered 0
   let m item 0 (item 0 incoming)
   let respond_to item 1 (item 0 incoming)
   if m = ["not interested"] [ set incoming []
     stop]
   if m = ["thanks for the info"] [ set incoming []
     stop]
-  if item 0 m = "selled at" [  set incoming []
+  if item 0 m = "sold at" [  set incoming []
     stop]
   if item 0 m = "bought at" [ set incoming []
     stop ]
   if goal = "buy" and (item 0 m = "want to sell at price") [
     let offered_price item 1 m
     if price >= offered_price [
-      let r (list "selled at" offered_price)
+      let r (list "sold at" offered_price)
       send_message(respond_to)(r)(self)
       set deals deals + 1
-      set responded 1
+      set answered 1
       set incoming []
     ]
     if price < offered_price [
       let r (list "would buy at" price)
       send_message(respond_to)(r)(self)
-      set responded 1
+      set answered 1
     ]
    ]
   if goal = "buy" and (item 0 m = "would sell at") [
@@ -208,7 +207,7 @@ to negotiate
     update_my_price(offered_price)
     let r (list "thanks for the info")
     send_message(respond_to)(r)(self)
-    set responded 1
+    set answered 1
     set incoming []
 
    ]
@@ -218,12 +217,12 @@ to negotiate
       let r (list "bought at" offered_price)
       send_message(respond_to)(r)(self)
       set deals deals + 1
-      set responded 1
+      set answered 1
     ]
     if price > offered_price [
       let r (list "would sell at" price)
       send_message(respond_to)(r)(self)
-      set responded 1
+      set answered 1
       set incoming []
     ]
    ]
@@ -232,10 +231,10 @@ to negotiate
     update_my_price(offered_price)
     let r (list "thanks for the info")
     send_message(respond_to)(r)(self)
-    set responded 1
+    set answered 1
     set incoming []
    ]
-  if responded = 0 [
+  if answered = 0 [
     let r (list "not interested")
     send_message(respond_to)(r)(self)
     set incoming []
@@ -502,7 +501,7 @@ X_min_price
 X_min_price
 0
 100
-20
+21
 1
 1
 NIL
@@ -517,7 +516,7 @@ X_max_price
 X_max_price
 0
 100
-100
+99
 1
 1
 NIL
