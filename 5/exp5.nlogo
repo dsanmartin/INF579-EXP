@@ -1,9 +1,10 @@
+
 breed [sellers seller]
 breed [buyers buyer]
 
-globals [round_ turn sample deals]
-sellers-own [goal incoming store-location price min_price]
-buyers-own [goal incoming price max_price]
+globals [round_ turn sample deals all_prices plot_buyer_price plot_seller_price]
+sellers-own [goal incoming price prices min_price max_price min_max store-location]
+buyers-own [goal incoming price prices min_price max_price min_max ]
 
 to setup
   ca
@@ -14,6 +15,7 @@ to setup
    setup-seller-Y
    setup-seller-Z
    set sample []
+   set all_prices []
    reset-ticks
 end
 
@@ -21,9 +23,11 @@ to setup-buyer-A
   create-buyers 1 [
     set label "A"
     set goal "buy"
-    set price A_min_price
+    set prices []
+    set min_price A_min_price
     set max_price A_max_price
     set incoming []
+    set min_max []
     set shape "person"
     set color 86
     set size 3
@@ -34,9 +38,11 @@ to setup-buyer-B
   create-buyers 1 [
     set label "B"
     set goal "buy"
-    set price B_min_price
+    set prices []
+    set min_price B_min_price
     set max_price B_max_price
     set incoming []
+    set min_max []
     set shape "person"
     set color 76
     set size 3
@@ -47,9 +53,11 @@ to setup-buyer-C
   create-buyers 1 [
     set label "C"
     set goal "buy"
-    set price C_min_price
+    set prices []
+    set min_price C_min_price
     set max_price C_max_price
     set incoming []
+    set min_max []
     set shape "person"
     set color 66
     set size 3
@@ -61,9 +69,11 @@ to setup-seller-X
   create-sellers 1 [
     set label "X"
     set goal "sell"
-    set price X_max_price
+    set prices []
     set min_price X_min_price
+    set max_price X_max_price
     set incoming []
+    set min_max []
     set shape "person"
     set color 16
     set size 3
@@ -75,9 +85,11 @@ to setup-seller-Y
   create-sellers 1 [
     set label "Y"
     set goal "sell"
-    set price Y_max_price
+    set prices []
     set min_price Y_min_price
+    set max_price Y_max_price
     set incoming []
+    set min_max []
     set shape "person"
     set color 26
     set size 3
@@ -89,9 +101,11 @@ to setup-seller-Z
   create-sellers 1 [
     set label "Z"
     set goal "sell"
-    set price Z_max_price
+    set prices []
     set min_price Z_min_price
+    set max_price Z_max_price
     set incoming []
+    set min_max []
     set shape "person"
     set color 36
     set size 3
@@ -105,6 +119,7 @@ to run-simulation
   if round_ = max_round [ stop ]
   go-until-empty-here
   run-round_
+  plot_prices
 end
 
 to run-round_
@@ -125,10 +140,11 @@ to run-turn
   ask one-of sample [
     set sample remove self sample
     if goal = "buy" [
-      let s one-of ["X" "Y" "Z"]
-      let xs one-of sellers with [label = s]
+      let xs one-of sellers
       face xs
-      while [not any? sellers with [label = s] in-radius 2][fd 1]
+      fd 12
+      move-to xs
+      recover_price(xs)
       ask_to_buy(xs)
       rt 180
       fd 12
@@ -136,10 +152,11 @@ to run-turn
       go-until-empty-here
     ]
      if goal = "sell" [
-      let c one-of ["A" "B" "C"]
-      let xc one-of buyers with [label = c]
+      let xc one-of buyers
       face xc
-      while [not any? buyers with [label = c] in-radius 2][fd 1]
+      fd 12
+      move-to xc
+      recover_price(xc)
       ask_to_sell(xc)
       rt 180
       fd 12
@@ -169,14 +186,37 @@ to ask_to_sell [x]
 end
 
 to send_message[receiver message sender]
-  ask receiver [ set incoming fput (list message sender) incoming]
+  ask receiver [ set incoming fput (list message sender) incoming ]
   output-show (list receiver message)
   ask receiver [ negotiate ]
 end
 
+to recover_price [xx]
+  if goal = "buy" [
+    set price "NULL"
+    foreach prices [
+      if (member? xx ?) [ set price item 1 ?]
+    ]
+    if price = "NULL" [
+      set prices fput (list xx min_price) prices
+      set price min_price
+    ]
+  ]
+  if goal = "sell" [
+    set price "NULL"
+    foreach prices [
+      if (member? xx ?) [ set price item 1 ?]
+    ]
+    if price = "NULL" [
+      set prices fput (list xx max_price) prices
+      set price max_price
+    ]
+  ]
+end
+
 to negotiate
   if incoming = [] [stop]
-  let answered 0
+  let responded 0
   let m item 0 (item 0 incoming)
   let respond_to item 1 (item 0 incoming)
   if m = ["not interested"] [ set incoming []
@@ -189,101 +229,139 @@ to negotiate
     stop ]
   if goal = "buy" and (item 0 m = "want to sell at price") [
     let offered_price item 1 m
+    update_all_prices(respond_to)(self)(offered_price)
+    recover_price(respond_to)
     if price >= offered_price [
       let r (list "sold at" offered_price)
       send_message(respond_to)(r)(self)
       set deals deals + 1
-      set answered 1
+      set responded 1
       set incoming []
+      update_my_price(offered_price)(respond_to)
     ]
     if price < offered_price [
       let r (list "would buy at" price)
       send_message(respond_to)(r)(self)
-      set answered 1
+      set responded 1
     ]
    ]
   if goal = "buy" and (item 0 m = "would sell at") [
     let offered_price item 1 m
-    update_my_price(offered_price)
+    update_all_prices(respond_to)(self)(offered_price)
     let r (list "thanks for the info")
     send_message(respond_to)(r)(self)
-    set answered 1
+    set responded 1
     set incoming []
-
+    update_my_price(offered_price)(respond_to)
    ]
   if goal = "sell" and (item 0 m = "want to buy at price") [
     let offered_price item 1 m
+    update_all_prices(respond_to)(self)(offered_price)
+    recover_price(respond_to)
     if price <= offered_price [
       let r (list "bought at" offered_price)
       send_message(respond_to)(r)(self)
       set deals deals + 1
-      set answered 1
+      set responded 1
     ]
     if price > offered_price [
       let r (list "would sell at" price)
       send_message(respond_to)(r)(self)
-      set answered 1
+      set responded 1
       set incoming []
+      update_my_price(offered_price)(respond_to)
     ]
    ]
   if goal = "sell" and (item 0 m = "would buy at") [
     let offered_price item 1 m
-    update_my_price(offered_price)
+    update_all_prices(respond_to)(self)(offered_price)
     let r (list "thanks for the info")
     send_message(respond_to)(r)(self)
-    set answered 1
+    set responded 1
     set incoming []
+    update_my_price(offered_price)(respond_to)
    ]
-  if answered = 0 [
+  if responded = 0 [
     let r (list "not interested")
     send_message(respond_to)(r)(self)
     set incoming []
   ]
 end
 
-to update_my_price[offered_price]
+to update_my_price[offered_price offerer]
+  recover_price(offerer)
+  recover_min_max(offerer)(self)
+  let minj 1
+  let maxj 100
+  foreach min_max [
+      if (member? offerer ?) [
+        set minj item 1 ?
+        set maxj item 2 ?
+      ]
+    ]
   if goal = "buy" [
-    let utility_i_j (100 - offered_price)
-    let utility_i_i (100 - price)
+    let utility_i_j (max_price - offered_price) / (max_price - min_price)
+    let utility_i_i (max_price - price) / (max_price - min_price)
     let risk_i ((utility_i_i - utility_i_j) / utility_i_i)
 
-    let utility_j_j (offered_price)
-    let utility_j_i (price)
+    let utility_j_j (offered_price - minj) / (maxj - minj)
+    let utility_j_i (price - minj) / (maxj - minj)
+
     let risk_j ((utility_j_j - utility_j_i) / utility_j_j)
 
     while [risk_i <= risk_j and risk_i > 0 and price < max_price] [
       set price price + 1
-      set utility_i_j (100 - offered_price)
-      set utility_i_i (100 - price)
+      set utility_i_j (max_price - offered_price) / (max_price - min_price)
+      set utility_i_i (max_price - price) / (max_price - min_price)
       set risk_i ((utility_i_i - utility_i_j) / utility_i_i)
 
-      set utility_j_j (offered_price)
-      set utility_j_i (price)
+      set utility_j_j (offered_price - minj) / (maxj - minj)
+      set utility_j_i (price - minj) / (maxj - minj)
       set risk_j ((utility_j_j - utility_j_i) / utility_j_j)
     ]
   ]
   if goal = "sell" [
-    let utility_i_j (offered_price)
-    let utility_i_i (price)
+    let utility_i_j (offered_price - min_price) / (max_price - min_price)
+    let utility_i_i (price - min_price) / (max_price - min_price)
     let risk_i ((utility_i_i - utility_i_j) / utility_i_i)
 
-    let utility_j_j (100 - offered_price)
-    let utility_j_i (100 - price)
+    let utility_j_j (maxj - offered_price) / (maxj - minj)
+    let utility_j_i (maxj - price) / (maxj - minj)
     let risk_j ((utility_j_j - utility_j_i) / utility_j_j)
 
-    while [risk_i <= risk_j and risk_i > 0 and price > min_price] [
+    while [risk_i <= risk_j and risk_i > 0 and (price > min_price + 1)] [
       set price price - 1
-      set utility_i_j (offered_price)
-      set utility_i_i (price)
+      set utility_i_j (offered_price - min_price) / (max_price - min_price)
+      set utility_i_i (price - min_price) / (max_price - min_price)
       set risk_i ((utility_i_i - utility_i_j) / utility_i_i)
 
-      set utility_j_j (100 - offered_price)
-      set utility_j_i (100 - price)
+      set utility_j_j (maxj - offered_price) / (maxj - minj)
+      set utility_j_i (maxj - price) / (maxj - minj)
       set risk_j ((utility_j_j - utility_j_i) / utility_j_j)
     ]
   ]
+  foreach prices [
+      if (member? offerer ?) [ set prices remove ? prices  ]
+    ]
+    set prices fput (list offerer price) prices
 end
 
+to recover_min_max [xx recoverer]
+ ask xx [
+   save_min_max(recoverer)(min_price)(max_price)(self)
+ ]
+end
+
+to save_min_max [xx minj maxj xj]
+  ask xx [
+    foreach min_max [
+      if member? xj ? [
+        set min_max remove ? min_max
+      ]
+    ]
+    set min_max fput (list xj minj maxj) min_max
+  ]
+end
 
 to seller-position
   ask sellers with [label = "X"][
@@ -302,6 +380,24 @@ to seller-position
     set store-location fput (list int xcor int ycor) store-location
   ]
 
+end
+
+to update_all_prices[offerer offered price_]
+  foreach all_prices [
+    if item 0 ? = offerer and item 1 ? = offered [ set all_prices remove ? all_prices]
+  ]
+  set all_prices fput (list offerer offered price_) all_prices
+end
+
+to plot_prices
+  let buyer_ one-of buyers with [label =  Follow_Buyer]
+  let seller_ one-of sellers with [label =  Follow_Seller]
+  foreach all_prices [
+     if item 0 ? = buyer_ and item 1 ? = seller_ [ set plot_buyer_price item 2 ? ]
+     if item 0 ? = seller_ and item 1 ? = buyer_ [ set plot_seller_price item 2 ? ]
+  ]
+  output-show all_prices
+  output-show plot_buyer_price
 end
 
 to go-until-empty-here  ;; buyers not overlap
@@ -327,13 +423,13 @@ to go-until-empty-here  ;; buyers not overlap
 end
 @#$#@#$#@
 GRAPHICS-WINDOW
-210
-10
-649
-470
+669
+109
+1022
+483
 16
 16
-13.0
+10.4
 1
 10
 1
@@ -388,15 +484,15 @@ NIL
 1
 
 SLIDER
-987
-12
-1159
-45
+661
+46
+833
+79
 max_round
 max_round
 1
-100
-50
+300
+150
 1
 1
 NIL
@@ -409,9 +505,9 @@ SLIDER
 61
 A_min_price
 A_min_price
-0
-100
 1
+100
+24
 1
 1
 NIL
@@ -424,9 +520,9 @@ SLIDER
 93
 A_max_price
 A_max_price
-0
+1
 100
-80
+81
 1
 1
 NIL
@@ -439,9 +535,9 @@ SLIDER
 133
 B_min_price
 B_min_price
-0
-100
 1
+100
+13
 1
 1
 NIL
@@ -454,9 +550,9 @@ SLIDER
 166
 B_max_price
 B_max_price
-0
+1
 100
-80
+85
 1
 1
 NIL
@@ -469,9 +565,9 @@ SLIDER
 206
 C_min_price
 C_min_price
-0
-100
 1
+100
+31
 1
 1
 NIL
@@ -484,9 +580,9 @@ SLIDER
 236
 C_max_price
 C_max_price
-0
+1
 100
-80
+83
 1
 1
 NIL
@@ -499,9 +595,9 @@ SLIDER
 312
 X_min_price
 X_min_price
-0
+1
 100
-21
+13
 1
 1
 NIL
@@ -514,9 +610,9 @@ SLIDER
 342
 X_max_price
 X_max_price
-0
+1
 100
-99
+75
 1
 1
 NIL
@@ -529,9 +625,9 @@ SLIDER
 380
 Y_min_price
 Y_min_price
-0
+1
 100
-20
+27
 1
 1
 NIL
@@ -544,9 +640,9 @@ SLIDER
 411
 Y_max_price
 Y_max_price
-0
+1
 100
-100
+97
 1
 1
 NIL
@@ -559,9 +655,9 @@ SLIDER
 455
 Z_min_price
 Z_min_price
-0
+1
 100
-20
+23
 1
 1
 NIL
@@ -574,19 +670,19 @@ SLIDER
 486
 Z_max_price
 Z_max_price
-0
+1
 100
-100
+78
 1
 1
 NIL
 HORIZONTAL
 
 MONITOR
-1186
-10
-1244
-55
+851
+47
+909
+92
 NIL
 round_
 17
@@ -594,11 +690,11 @@ round_
 11
 
 PLOT
-660
-56
-1243
-194
-Price
+1035
+286
+1271
+466
+Last Price by Agent
 NIL
 NIL
 0.0
@@ -612,10 +708,10 @@ PENS
 "default" 1.0 0 -16777216 true "" "ask turtles [\n  create-temporary-plot-pen (word who)\n  set-plot-pen-color color\n  plotxy ticks price\n]"
 
 MONITOR
-904
-10
-961
-55
+916
+48
+973
+93
 Deals
 Deals
 17
@@ -623,10 +719,10 @@ Deals
 11
 
 OUTPUT
-669
-206
-1238
-462
+201
+10
+656
+483
 12
 
 TEXTBOX
@@ -648,6 +744,67 @@ Sellers
 12
 0.0
 1
+
+CHOOSER
+1039
+10
+1177
+55
+Follow_Buyer
+Follow_Buyer
+"A" "B" "C"
+1
+
+CHOOSER
+1041
+61
+1179
+106
+Follow_Seller
+Follow_Seller
+"X" "Y" "Z"
+0
+
+PLOT
+1035
+113
+1269
+282
+Followed Price
+NIL
+NIL
+0.0
+10.0
+0.0
+10.0
+true
+false
+"" ""
+PENS
+"default" 1.0 0 -15040220 true "" "plotxy ticks plot_buyer_price"
+"pen-1" 1.0 0 -2674135 true "" "plotxy ticks plot_seller_price"
+
+MONITOR
+1180
+10
+1268
+55
+Buyer Price
+plot_buyer_price
+17
+1
+11
+
+MONITOR
+1181
+61
+1269
+106
+Seller Price
+plot_seller_price
+17
+1
+11
 
 @#$#@#$#@
 ## WHAT IS IT?
